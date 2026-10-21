@@ -1,0 +1,5 @@
+ALTER TABLE alliances RENAME COLUMN playersCount TO players_count;
+ALTER TABLE alliances RENAME COLUMN totalField TO total_field;
+ALTER TABLE alliances RENAME COLUMN totalBuildingScore TO total_building_score;
+ALTER TABLE alliances RENAME COLUMN totalTechnologyScore TO total_technology_score;
+ALTER TABLE alliances RENAME COLUMN totalTrophyScore TO total_trophy_score;

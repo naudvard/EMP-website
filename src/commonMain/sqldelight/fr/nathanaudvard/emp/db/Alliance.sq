@@ -1,0 +1,14 @@
+deleteVersion:
+DELETE FROM alliances WHERE version = ?;
+
+insert:
+INSERT INTO alliances (
+    version, tag, name, players_count, total_field,
+    total_building_score, total_technology_score, total_trophy_score, wars
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id;
+
+insertPact:
+INSERT INTO alliance_pacts (alliance_id, tag, name, description)
+VALUES (?, ?, ?, ?);

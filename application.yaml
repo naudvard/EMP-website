@@ -2,3 +2,10 @@ ktor:
   deployment:
     host: "$HOST:127.0.0.1"
     port: "$PORT:3000"
+
+app:
+  database:
+    path: "$DATABASE_PATH:./data/app.sqlite"
+  fourmizzz:
+    baseUrl: "$FOURMIZZZ_BASE_URL:https://s5.fourmizzz.fr"
+    timeoutMs: "$FOURMIZZZ_TIMEOUT_MS:10000"

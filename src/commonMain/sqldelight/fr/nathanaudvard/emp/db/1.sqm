@@ -1,0 +1,26 @@
+-- IF NOT EXISTS: databases created by the former drizzle migrations already hold these tables
+CREATE TABLE IF NOT EXISTS alliances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    name TEXT NOT NULL,
+    playersCount INTEGER NOT NULL,
+    totalField INTEGER NOT NULL,
+    totalBuildingScore INTEGER NOT NULL,
+    totalTechnologyScore INTEGER NOT NULL,
+    totalTrophyScore INTEGER NOT NULL,
+    wars TEXT AS kotlin.collections.List<kotlin.String> NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS alliances_version_tag_unique ON alliances (version, tag);
+
+CREATE TABLE IF NOT EXISTS alliance_pacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    alliance_id INTEGER NOT NULL REFERENCES alliances(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL
+);
+
+-- SQLite does not index foreign keys automatically
+CREATE INDEX IF NOT EXISTS alliance_pacts_alliance_id_idx ON alliance_pacts (alliance_id);
