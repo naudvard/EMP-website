@@ -6,10 +6,12 @@ import fr.nathanaudvard.emp.api.controllers.healthController
 import fr.nathanaudvard.emp.config.AllianceConfig
 import fr.nathanaudvard.emp.database.ExportedPlayerRepository
 import fr.nathanaudvard.emp.database.PlayerRepository
+import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.domain.usecase.ComputeWages
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedAlliances
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedPlayers
 import fr.nathanaudvard.emp.web.controllers.levelsController
+import fr.nathanaudvard.emp.web.controllers.wagesController
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.di.resolve
@@ -22,11 +24,13 @@ suspend fun Application.configureRouting() {
     val players: PlayerRepository = dependencies.resolve()
     val alliance: AllianceConfig = dependencies.resolve()
     val computeWages: ComputeWages = dependencies.resolve()
+    val wages: WageRepository = dependencies.resolve()
 
     routing {
         healthController()
         exportController(syncAlliances, syncPlayers)
         allianceController(computeWages)
         levelsController(exportedPlayers, players, alliance.tag)
+        wagesController(wages, alliance.tag)
     }
 }

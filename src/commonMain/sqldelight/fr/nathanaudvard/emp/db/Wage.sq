@@ -8,3 +8,12 @@ INSERT INTO wages VALUES ?;
 
 insertDelivery:
 INSERT INTO wage_deliveries VALUES ?;
+
+selectLatestComputation:
+SELECT * FROM wage_computations WHERE alliance_tag = ? ORDER BY id DESC LIMIT 1;
+
+selectWages:
+SELECT * FROM wages WHERE computation_id = ?;
+
+selectDeliveries:
+SELECT * FROM wage_deliveries WHERE computation_id = ?;
