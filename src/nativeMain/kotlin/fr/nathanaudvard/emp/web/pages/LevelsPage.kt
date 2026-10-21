@@ -1,8 +1,8 @@
 package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.AllianceMember
-import fr.nathanaudvard.emp.domain.model.LayingTimeFactor
-import fr.nathanaudvard.emp.web.forms.LayingTimeForm
+import fr.nathanaudvard.emp.domain.model.PlayerLevel
+import fr.nathanaudvard.emp.web.forms.LevelsForm
 import kotlinx.html.ButtonType
 import kotlinx.html.DIV
 import kotlinx.html.FORM
@@ -29,10 +29,10 @@ import kotlinx.html.style
 import kotlinx.html.title
 import kotlinx.html.unsafe
 
-fun HTML.layingTimePage(
+fun HTML.levelsPage(
     action: String,
     members: List<AllianceMember>,
-    values: LayingTimeForm,
+    values: LevelsForm,
     errors: Map<String, String> = emptyMap(),
     saved: String? = null,
 ) {
@@ -40,22 +40,22 @@ fun HTML.layingTimePage(
     head {
         meta(charset = "utf-8")
         meta(name = "viewport", content = "width=device-width, initial-scale=1")
-        title("Mon TDP")
+        title("Mes niveaux")
         style { unsafe { +STYLE } }
     }
     body {
         main {
-            h1 { +"Mon TDP" }
+            h1 { +"Mes niveaux" }
             if (saved != null) {
-                p("notice success") { +"TDP de $saved enregistré." }
+                p("notice success") { +"Niveau de $saved enregistré." }
             }
             if (members.isEmpty()) {
                 p("notice error") { +"Aucun membre connu : l'export des joueurs n'a pas encore été synchronisé." }
             }
             form(action = action, method = FormMethod.post) {
-                field(LayingTimeForm.PSEUDO, "Pseudo", errors) {
-                    input(InputType.text, name = LayingTimeForm.PSEUDO) {
-                        id = LayingTimeForm.PSEUDO
+                field(LevelsForm.PSEUDO, "Pseudo", errors) {
+                    input(InputType.text, name = LevelsForm.PSEUDO) {
+                        id = LevelsForm.PSEUDO
                         value = values.pseudo
                         placeholder = "Rechercher un pseudo"
                         required = true
@@ -67,27 +67,27 @@ fun HTML.layingTimePage(
                         members.forEach { option { value = it.pseudo } }
                     }
                 }
-                field(LayingTimeForm.FACTOR, "Élément", errors) {
+                field(LevelsForm.KIND, "Élément", errors) {
                     select {
-                        id = LayingTimeForm.FACTOR
-                        name = LayingTimeForm.FACTOR
+                        id = LevelsForm.KIND
+                        name = LevelsForm.KIND
                         required = true
                         option {
                             value = ""
                             +"Choisir…"
                         }
-                        LayingTimeFactor.entries.forEach { factor ->
+                        PlayerLevel.entries.forEach { kind ->
                             option {
-                                value = factor.name
-                                selected = factor.name == values.factor
-                                +factor.label
+                                value = kind.name
+                                selected = kind.name == values.kind
+                                +kind.label
                             }
                         }
                     }
                 }
-                field(LayingTimeForm.LEVEL, "Niveau", errors) {
-                    input(InputType.number, name = LayingTimeForm.LEVEL) {
-                        id = LayingTimeForm.LEVEL
+                field(LevelsForm.LEVEL, "Niveau", errors) {
+                    input(InputType.number, name = LevelsForm.LEVEL) {
+                        id = LevelsForm.LEVEL
                         value = values.level
                         min = "0"
                         step = "1"

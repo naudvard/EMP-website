@@ -1,0 +1,38 @@
+ALTER TABLE players ADD COLUMN aphid_farm_level INTEGER;
+
+CREATE TABLE wage_computations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    alliance_tag TEXT NOT NULL,
+    -- ISO-8601 UTC instant
+    computed_at TEXT NOT NULL,
+    -- Latest players export version the members come from
+    export_version TEXT NOT NULL,
+    -- Hourly field measures available over the last 24 hours
+    hours INTEGER NOT NULL,
+    distribution TEXT NOT NULL
+);
+
+CREATE TABLE wages (
+    computation_id INTEGER NOT NULL REFERENCES wage_computations(id) ON DELETE CASCADE,
+    player_id INTEGER NOT NULL,
+    pseudo TEXT NOT NULL,
+    average_field REAL NOT NULL,
+    self_production REAL NOT NULL,
+    laying_time INTEGER NOT NULL,
+    theoretical_need REAL NOT NULL,
+    build_time_seconds REAL NOT NULL,
+    reduction_factor REAL NOT NULL,
+    relative_need REAL NOT NULL,
+    gross_wage REAL NOT NULL,
+    wage_to_distribute REAL NOT NULL,
+    PRIMARY KEY (computation_id, player_id)
+);
+
+CREATE TABLE wage_deliveries (
+    computation_id INTEGER NOT NULL REFERENCES wage_computations(id) ON DELETE CASCADE,
+    from_player_id INTEGER NOT NULL,
+    to_player_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL
+);
+
+CREATE INDEX wage_deliveries_computation_id_idx ON wage_deliveries (computation_id);

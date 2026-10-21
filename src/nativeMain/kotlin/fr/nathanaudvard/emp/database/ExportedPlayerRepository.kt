@@ -21,6 +21,16 @@ class ExportedPlayerRepository(database: EmpDatabase) {
     suspend fun latestMembers(allianceTag: String): List<AllianceMember> = withContext(Dispatchers.IO) {
         queries.latestMembers(allianceTag, ::AllianceMember).executeAsList()
     }
+
+    suspend fun versionsSince(version: String): List<String> = withContext(Dispatchers.IO) {
+        queries.versionsSince(version).executeAsList()
+    }
+
+    suspend fun averageFields(playerIds: Collection<Long>, versions: Collection<String>): Map<Long, Double> =
+        withContext(Dispatchers.IO) {
+            queries.averageFields(playerIds, versions).executeAsList()
+                .associate { it.id to checkNotNull(it.average_field) }
+        }
 }
 
 private fun ExportedPlayer.toRow(version: String) = Exported_players(

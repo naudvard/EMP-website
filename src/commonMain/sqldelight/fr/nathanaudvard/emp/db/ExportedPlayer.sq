@@ -5,6 +5,14 @@ insert:
 INSERT INTO exported_players VALUES ?;
 
 latestMembers:
-SELECT id, pseudo FROM exported_players
+SELECT id, pseudo, master_player_id FROM exported_players
 WHERE alliance_tag = ? AND version = (SELECT max(version) FROM exported_players)
 ORDER BY pseudo COLLATE NOCASE;
+
+versionsSince:
+SELECT DISTINCT version FROM exported_players WHERE version >= ?;
+
+averageFields:
+SELECT id, avg(field) AS average_field FROM exported_players
+WHERE id IN :ids AND version IN :versions
+GROUP BY id;

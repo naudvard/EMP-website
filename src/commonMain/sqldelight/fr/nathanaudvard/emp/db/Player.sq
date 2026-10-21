@@ -1,8 +1,12 @@
 -- A null level keeps the stored one
 upsertLevels:
-INSERT INTO players (id, incubator_level, solarium_level, laying_technique_level)
-VALUES (?, ?, ?, ?)
+INSERT INTO players (id, incubator_level, solarium_level, laying_technique_level, aphid_farm_level)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET
     incubator_level = coalesce(excluded.incubator_level, incubator_level),
     solarium_level = coalesce(excluded.solarium_level, solarium_level),
-    laying_technique_level = coalesce(excluded.laying_technique_level, laying_technique_level);
+    laying_technique_level = coalesce(excluded.laying_technique_level, laying_technique_level),
+    aphid_farm_level = coalesce(excluded.aphid_farm_level, aphid_farm_level);
+
+selectByIds:
+SELECT * FROM players WHERE id IN ?;

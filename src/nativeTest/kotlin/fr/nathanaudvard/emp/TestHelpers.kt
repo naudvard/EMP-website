@@ -28,6 +28,8 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.random.Random
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
@@ -118,6 +120,8 @@ class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: F
 
 private const val FOURMIZZZ_URL = "http://fourmizzz.test"
 
+val NOW: Instant = Instant.parse("2026-10-20T12:30:00Z")
+
 fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.() -> Unit) {
     val databasePath = Path(SystemTemporaryDirectory, "site-test-${Random.nextLong().toULong()}.sqlite")
     try {
@@ -139,6 +143,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
             }
             application {
                 dependencies.provide<HttpClient> { this@testApplication.createClient { } }
+                dependencies.provide<Clock> { object : Clock { override fun now() = NOW } }
                 module()
             }
             client = createClient {

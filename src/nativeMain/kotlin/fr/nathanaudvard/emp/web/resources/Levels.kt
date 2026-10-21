@@ -4,5 +4,5 @@ import io.ktor.resources.Resource
 import kotlinx.serialization.Serializable
 
 @Serializable
-@Resource("/tdp")
-class LayingTime(val saved: String? = null)
+@Resource("/update-levels")
+class Levels(val saved: String? = null)

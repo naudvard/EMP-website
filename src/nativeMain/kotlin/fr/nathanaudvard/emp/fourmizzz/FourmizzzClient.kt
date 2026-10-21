@@ -33,10 +33,11 @@ class FourmizzzClient(http: HttpClient, config: FourmizzzConfig) {
         }
     }
 
-    suspend fun latestVersion(type: ExportType): String {
-        val versions = fetch<ExportVersionsRes>("api/exports/")
-        return versions[type].firstOrNull() ?: throw ExportNotFoundException(type, "latest")
-    }
+    suspend fun latestVersion(type: ExportType): String =
+        versions(type).firstOrNull() ?: throw ExportNotFoundException(type, "latest")
+
+    // Newest first
+    suspend fun versions(type: ExportType): List<String> = fetch<ExportVersionsRes>("api/exports/")[type]
 
     suspend fun alliances(version: String): List<ExportedAlliance> =
         fetchExport<AllianceRes>(ExportType.ALLIANCES, version).map { it.toExportedAlliance() }

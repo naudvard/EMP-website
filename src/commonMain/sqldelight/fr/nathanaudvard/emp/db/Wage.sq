@@ -1,0 +1,10 @@
+insertComputation:
+INSERT INTO wage_computations (alliance_tag, computed_at, export_version, hours, distribution)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id;
+
+insertWage:
+INSERT INTO wages VALUES ?;
+
+insertDelivery:
+INSERT INTO wage_deliveries VALUES ?;

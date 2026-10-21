@@ -1,6 +1,7 @@
 package fr.nathanaudvard.emp.config
 
 import fr.nathanaudvard.emp.api.dto.ErrorResponse
+import fr.nathanaudvard.emp.domain.exception.AllianceNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportUnavailableException
 import fr.nathanaudvard.emp.domain.exception.InvalidVersionException
@@ -20,7 +21,7 @@ fun Application.configureStatusPages() {
         exception<Throwable> { call, cause ->
             val status = when (cause) {
                 is InvalidVersionException -> HttpStatusCode.BadRequest
-                is ExportNotFoundException -> HttpStatusCode.NotFound
+                is ExportNotFoundException, is AllianceNotFoundException -> HttpStatusCode.NotFound
                 is ExportUnavailableException -> HttpStatusCode.BadGateway
                 else -> defaultExceptionStatusCode(cause) ?: HttpStatusCode.InternalServerError
             }

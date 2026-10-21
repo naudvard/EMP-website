@@ -1,7 +1,7 @@
 package fr.nathanaudvard.emp
 
 import fr.nathanaudvard.emp.api.resources.Exports
-import fr.nathanaudvard.emp.web.resources.LayingTime
+import fr.nathanaudvard.emp.web.resources.Levels
 import io.ktor.client.plugins.resources.get
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
@@ -14,7 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class LayingTimePageTest {
+class LevelsPageTest {
     private suspend fun AppTestScope.syncMembers() {
         fourmizzz.players("202610201100", listOf(fourmi.copy(id = 7, pseudo = "Ancien")))
         fourmizzz.players(
@@ -25,12 +25,12 @@ class LayingTimePageTest {
         post(Exports.Players.Sync(version = "202610201200"))
     }
 
-    private suspend fun AppTestScope.submit(pseudo: String, factor: String, level: String): HttpResponse =
+    private suspend fun AppTestScope.submit(pseudo: String, kind: String, level: String): HttpResponse =
         client.submitForm(
-            "/tdp",
+            "/update-levels",
             parameters {
                 append("pseudo", pseudo)
-                append("factor", factor)
+                append("kind", kind)
                 append("level", level)
             },
         )
@@ -44,14 +44,14 @@ class LayingTimePageTest {
     fun `lists the alliance members of the latest synced export`() = appTest {
         syncMembers()
 
-        val page = client.get(LayingTime()).bodyAsText()
+        val page = client.get(Levels()).bodyAsText()
 
         val datalist = Regex("""<datalist id="members">(.*?)</datalist>""", RegexOption.DOT_MATCHES_ALL).find(page)!!.groupValues[1]
         assertEquals(listOf("abeille", "Fourmi"), Regex("""value="([^"]*)"""").findAll(datalist).map { it.groupValues[1] }.toList())
     }
 
     @Test
-    fun `saves a factor level and keeps the other ones`() = appTest {
+    fun `saves a kind level and keeps the other ones`() = appTest {
         syncMembers()
 
         val res = submit("Fourmi", "INCUBATOR", "12")
@@ -60,7 +60,7 @@ class LayingTimePageTest {
 
         assertEquals(HttpStatusCode.Found, res.status)
         val location = res.headers[HttpHeaders.Location]!!
-        assertTrue("TDP de Fourmi enregistré." in client.get(location).bodyAsText())
+        assertTrue("Niveau de Fourmi enregistré." in client.get(location).bodyAsText())
         assertEquals(listOf(listOf(123L, 13L, 8L, null)), storedLevels())
     }
 
@@ -78,11 +78,11 @@ class LayingTimePageTest {
     }
 
     @Test
-    fun `rejects an unknown factor or a level that is not a positive integer`() = appTest {
+    fun `rejects an unknown kind or a level that is not a positive integer`() = appTest {
         syncMembers()
 
-        for ((factor, level) in listOf("GRENIER" to "3", "INCUBATOR" to "-1", "INCUBATOR" to "1.5", "INCUBATOR" to "", "INCUBATOR" to "abc")) {
-            assertEquals(HttpStatusCode.BadRequest, submit("Fourmi", factor, level).status, "$factor $level")
+        for ((kind, level) in listOf("GRENIER" to "3", "INCUBATOR" to "-1", "INCUBATOR" to "1.5", "INCUBATOR" to "", "INCUBATOR" to "abc")) {
+            assertEquals(HttpStatusCode.BadRequest, submit("Fourmi", kind, level).status, "$kind $level")
         }
         assertEquals(emptyList(), storedLevels())
     }

@@ -93,6 +93,7 @@ kotlin {
             implementation(libs.sqldelight.native.driver)
             implementation(libs.kotlinx.io.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
         }
         nativeTest.dependencies {
             implementation(kotlin("test"))
