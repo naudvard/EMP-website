@@ -1,0 +1,5 @@
+deleteVersion:
+DELETE FROM players WHERE version = ?;
+
+insert:
+INSERT INTO players VALUES ?;

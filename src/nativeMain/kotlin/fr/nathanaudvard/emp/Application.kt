@@ -2,6 +2,7 @@ package fr.nathanaudvard.emp
 
 import fr.nathanaudvard.emp.config.configureMonitoring
 import fr.nathanaudvard.emp.config.configureSerialization
+import fr.nathanaudvard.emp.config.configureStatusPages
 import fr.nathanaudvard.emp.input.http.routes.configureRouting
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -17,10 +18,12 @@ fun main(args: Array<String>) {
         .start(wait = true)
 }
 
-fun Application.module() {
+suspend fun Application.module() {
     install(Resources)
 
     configureSerialization()
     configureMonitoring()
+    configureStatusPages()
+    configureDependencies()
     configureRouting()
 }

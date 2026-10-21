@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS players (
+    version TEXT NOT NULL,
+    -- Fourmizzz player id: unique within a game server only
+    id INTEGER NOT NULL,
+    pseudo TEXT NOT NULL,
+    alliance_tag TEXT,
+    master_player_id INTEGER,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    field INTEGER NOT NULL,
+    grade TEXT,
+    building_score INTEGER NOT NULL,
+    technology_score INTEGER NOT NULL,
+    trophy_score INTEGER NOT NULL,
+    on_holiday INTEGER AS kotlin.Boolean NOT NULL,
+    is_banned INTEGER AS kotlin.Boolean NOT NULL,
+    PRIMARY KEY (version, id)
+);
+
+CREATE INDEX IF NOT EXISTS players_version_alliance_tag_idx ON players (version, alliance_tag);

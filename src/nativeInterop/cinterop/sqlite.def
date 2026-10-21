@@ -1,0 +1,2 @@
+package = fr.nathanaudvard.emp.sqlite
+linkerOpts.linux = -lpthread -lm

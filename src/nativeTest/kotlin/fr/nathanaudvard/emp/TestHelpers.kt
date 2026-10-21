@@ -1,0 +1,155 @@
+package fr.nathanaudvard.emp
+
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.db.SqlDriver
+import fr.nathanaudvard.emp.domain.model.ExportType
+import fr.nathanaudvard.emp.output.http.AllianceRes
+import fr.nathanaudvard.emp.output.http.DiplomacyRes
+import fr.nathanaudvard.emp.output.http.ExportVersionsRes
+import fr.nathanaudvard.emp.output.http.PactRes
+import fr.nathanaudvard.emp.output.http.PlayerRes
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.client.plugins.resources.Resources
+import io.ktor.client.plugins.resources.post
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.config.MapApplicationConfig
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.resolve
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
+import io.ktor.server.testing.testApplication
+import kotlin.random.Random
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+
+val empire = AllianceRes(
+    tag = "EMP",
+    name = "Empire",
+    playersCount = 12,
+    totalField = 1_000,
+    totalBuildingScore = 100,
+    totalTechnologyScore = 50,
+    totalTrophyScore = 0,
+    diplomacy = DiplomacyRes(pacts = listOf(PactRes(tag = "ODF", name = "PNA", description = "")), wars = listOf("LRM")),
+)
+
+val fourmi = PlayerRes(
+    id = 123,
+    pseudo = "Fourmi",
+    alliance = "EMP",
+    masterPlayerId = null,
+    x = 10,
+    y = -4,
+    field = 98_765,
+    grade = "Chef",
+    buildingScore = 1_500,
+    technologyScore = 700,
+    trophyScore = 1_234,
+    onHoliday = false,
+    isBanned = false,
+)
+
+class FakeFourmizzz {
+    private val exports = ExportType.entries.associateWith { mutableMapOf<String, JsonElement>() }
+
+    val rejectedVersions = mutableSetOf<String>()
+
+    var failing = false
+
+    operator fun set(type: ExportType, version: String, body: JsonElement) {
+        exports.getValue(type)[version] = body
+    }
+
+    fun alliances(version: String, alliances: List<AllianceRes>) =
+        set(ExportType.ALLIANCES, version, Json.encodeToJsonElement(alliances))
+
+    fun players(version: String, players: List<PlayerRes>) =
+        set(ExportType.PLAYERS, version, Json.encodeToJsonElement(players))
+
+    private fun versions(type: ExportType) = exports.getValue(type).keys.sortedDescending()
+
+    fun Application.serve() {
+        install(ContentNegotiation) { json() }
+        routing {
+            get("/api/exports/") {
+                call.respond(ExportVersionsRes(players = versions(ExportType.PLAYERS), alliances = versions(ExportType.ALLIANCES)))
+            }
+            get("/api/exports/{type}/") {
+                val type = ExportType.entries.single { it.name.lowercase() == call.parameters["type"] }
+                val requested = call.request.queryParameters["version"] ?: "latest"
+                val body = (if (requested == "latest") versions(type).firstOrNull() else requested)
+                    ?.let { exports.getValue(type)[it] }
+                when {
+                    failing -> call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Erreur interne"))
+                    requested in rejectedVersions -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Parametre version invalide"))
+                    body == null -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "Aucun export pour cette version."))
+                    else -> call.respond(body)
+                }
+            }
+        }
+    }
+}
+
+class SyncTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
+    val client: HttpClient get() = builder.client
+
+    suspend inline fun <reified T : Any> post(resource: T): HttpResponse = client.post(resource)
+
+    suspend fun <T> query(sql: String, mapper: (SqlCursor) -> T): List<T> {
+        val driver: SqlDriver = builder.application.dependencies.resolve()
+        return driver.executeQuery(null, sql, { cursor ->
+            QueryResult.Value(buildList { while (cursor.next().value) add(mapper(cursor)) })
+        }, 0).value
+    }
+}
+
+private const val FOURMIZZZ_URL = "http://fourmizzz.test"
+
+fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.() -> Unit) {
+    val databasePath = Path(SystemTemporaryDirectory, "site-test-${Random.nextLong().toULong()}.sqlite")
+    try {
+        testApplication {
+            val fourmizzz = FakeFourmizzz()
+
+            environment {
+                config = MapApplicationConfig(
+                    "app.database.path" to databasePath.toString(),
+                    "app.fourmizzz.baseUrl" to fourmizzzUrl,
+                    "app.fourmizzz.timeoutMs" to "1000",
+                )
+            }
+            externalServices {
+                hosts(FOURMIZZZ_URL) {
+                    with(fourmizzz) { serve() }
+                }
+            }
+            application {
+                dependencies.provide<HttpClient> { this@testApplication.createClient { } }
+                module()
+            }
+            client = createClient {
+                install(Resources)
+                install(ClientContentNegotiation) { json() }
+            }
+
+            SyncTestScope(this, fourmizzz).block()
+        }
+    } finally {
+        for (suffix in listOf("", "-wal", "-shm")) {
+            SystemFileSystem.delete(Path("$databasePath$suffix"), mustExist = false)
+        }
+    }
+}
