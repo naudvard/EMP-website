@@ -1,17 +1,19 @@
 package fr.nathanaudvard.emp.domain.usecase
 
-import fr.nathanaudvard.emp.domain.model.Alliance
+import fr.nathanaudvard.emp.database.AllianceRepository
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.ExportVersion
-import fr.nathanaudvard.emp.domain.port.AllianceRepository
-import fr.nathanaudvard.emp.domain.port.ExportSource
+import fr.nathanaudvard.emp.domain.model.SyncResult
+import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 
 class SyncAlliances(
-    private val exports: ExportSource,
+    private val fourmizzz: FourmizzzClient,
     private val repository: AllianceRepository,
 ) {
-    suspend operator fun invoke(version: ExportVersion): List<Alliance> {
-        val resolved = exports.resolve(ExportType.ALLIANCES, version)
-        return repository.saveVersion(resolved, exports.alliances(resolved))
+    suspend operator fun invoke(version: ExportVersion): SyncResult {
+        val resolved = fourmizzz.resolve(ExportType.ALLIANCES, version)
+        val alliances = fourmizzz.alliances(resolved)
+        repository.replaceVersion(resolved, alliances)
+        return SyncResult(resolved, alliances.size)
     }
 }

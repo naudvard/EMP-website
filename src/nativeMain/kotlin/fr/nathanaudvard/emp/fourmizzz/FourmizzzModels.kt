@@ -1,8 +1,8 @@
-package fr.nathanaudvard.emp.output.http
+package fr.nathanaudvard.emp.fourmizzz
 
+import fr.nathanaudvard.emp.domain.model.Alliance
 import fr.nathanaudvard.emp.domain.model.ExportType
-import fr.nathanaudvard.emp.domain.model.NewAlliance
-import fr.nathanaudvard.emp.domain.model.NewPact
+import fr.nathanaudvard.emp.domain.model.Pact
 import fr.nathanaudvard.emp.domain.model.Player
 import kotlinx.serialization.Serializable
 
@@ -59,7 +59,7 @@ data class PlayerRes(
     val isBanned: Boolean,
 )
 
-fun AllianceRes.toNewAlliance() = NewAlliance(
+fun AllianceRes.toAlliance() = Alliance(
     tag = tag,
     name = name,
     playersCount = playersCount,
@@ -68,14 +68,13 @@ fun AllianceRes.toNewAlliance() = NewAlliance(
     totalTechnologyScore = totalTechnologyScore,
     totalTrophyScore = totalTrophyScore,
     wars = diplomacy.wars,
-    pacts = diplomacy.pacts.map { NewPact(tag = it.tag, name = it.name, description = it.description) },
+    pacts = diplomacy.pacts.map { Pact(tag = it.tag, name = it.name, description = it.description) },
 )
 
-fun PlayerRes.toPlayer(version: String) = Player(
+fun PlayerRes.toPlayer() = Player(
     id = id,
-    version = version,
     pseudo = pseudo,
-    alliance = alliance,
+    allianceTag = alliance,
     masterPlayerId = masterPlayerId,
     x = x,
     y = y,

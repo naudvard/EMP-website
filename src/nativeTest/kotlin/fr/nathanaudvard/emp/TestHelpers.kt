@@ -4,11 +4,11 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.domain.model.ExportType
-import fr.nathanaudvard.emp.output.http.AllianceRes
-import fr.nathanaudvard.emp.output.http.DiplomacyRes
-import fr.nathanaudvard.emp.output.http.ExportVersionsRes
-import fr.nathanaudvard.emp.output.http.PactRes
-import fr.nathanaudvard.emp.output.http.PlayerRes
+import fr.nathanaudvard.emp.fourmizzz.AllianceRes
+import fr.nathanaudvard.emp.fourmizzz.DiplomacyRes
+import fr.nathanaudvard.emp.fourmizzz.ExportVersionsRes
+import fr.nathanaudvard.emp.fourmizzz.PactRes
+import fr.nathanaudvard.emp.fourmizzz.PlayerRes
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.plugins.resources.Resources

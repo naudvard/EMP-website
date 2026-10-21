@@ -1,23 +1,14 @@
-upsert:
+deleteVersion:
+DELETE FROM alliances WHERE version = ?;
+
+insert:
 INSERT INTO alliances (
-    version, tag, name, playersCount, totalField,
-    totalBuildingScore, totalTechnologyScore, totalTrophyScore, wars
+    version, tag, name, players_count, total_field,
+    total_building_score, total_technology_score, total_trophy_score, wars
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (version, tag) DO UPDATE SET
-    name = excluded.name,
-    playersCount = excluded.playersCount,
-    totalField = excluded.totalField,
-    totalBuildingScore = excluded.totalBuildingScore,
-    totalTechnologyScore = excluded.totalTechnologyScore,
-    totalTrophyScore = excluded.totalTrophyScore,
-    wars = excluded.wars
 RETURNING id;
-
-deletePacts:
-DELETE FROM alliance_pacts WHERE alliance_id = ?;
 
 insertPact:
 INSERT INTO alliance_pacts (alliance_id, tag, name, description)
-VALUES (?, ?, ?, ?)
-RETURNING id;
+VALUES (?, ?, ?, ?);

@@ -1,4 +1,4 @@
-package fr.nathanaudvard.emp.output.database
+package fr.nathanaudvard.emp.database
 
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.db.SqlDriver

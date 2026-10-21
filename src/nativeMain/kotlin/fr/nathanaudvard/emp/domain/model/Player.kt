@@ -2,9 +2,8 @@ package fr.nathanaudvard.emp.domain.model
 
 data class Player(
     val id: Long,
-    val version: String,
     val pseudo: String,
-    val alliance: String?,
+    val allianceTag: String?,
     val masterPlayerId: Long?,
     val x: Long,
     val y: Long,

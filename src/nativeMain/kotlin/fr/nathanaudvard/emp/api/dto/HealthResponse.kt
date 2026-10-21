@@ -1,4 +1,4 @@
-package fr.nathanaudvard.emp.input.http.dto
+package fr.nathanaudvard.emp.api.dto
 
 import kotlinx.serialization.Serializable
 

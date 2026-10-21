@@ -2,16 +2,13 @@ package fr.nathanaudvard.emp
 
 import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.config.AppConfig
-import fr.nathanaudvard.emp.domain.port.AllianceRepository
-import fr.nathanaudvard.emp.domain.port.ExportSource
-import fr.nathanaudvard.emp.domain.port.PlayerRepository
+import fr.nathanaudvard.emp.database.AllianceRepository
+import fr.nathanaudvard.emp.database.PlayerRepository
+import fr.nathanaudvard.emp.database.createDatabase
+import fr.nathanaudvard.emp.database.createSqlDriver
 import fr.nathanaudvard.emp.domain.usecase.SyncAlliances
 import fr.nathanaudvard.emp.domain.usecase.SyncPlayers
-import fr.nathanaudvard.emp.output.database.SqlAllianceRepository
-import fr.nathanaudvard.emp.output.database.SqlPlayerRepository
-import fr.nathanaudvard.emp.output.database.createDatabase
-import fr.nathanaudvard.emp.output.database.createSqlDriver
-import fr.nathanaudvard.emp.output.http.FourmizzzClient
+import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 import io.ktor.client.HttpClient
 import io.ktor.server.application.Application
 import io.ktor.server.config.getAs
@@ -27,11 +24,11 @@ fun Application.configureDependencies() {
         // SQLDelight's Closeable is not AutoCloseable: DI does not close it by itself
         provide<SqlDriver> { createSqlDriver(config.database.path) } cleanup { it.close() }
         provide(::createDatabase)
-        provide<AllianceRepository> { SqlAllianceRepository(resolve()) }
-        provide<PlayerRepository> { SqlPlayerRepository(resolve()) }
+        provide(::AllianceRepository)
+        provide(::PlayerRepository)
 
         provide<HttpClient> { HttpClient() }
-        provide<ExportSource> { FourmizzzClient(resolve(), config.fourmizzz) }
+        provide<FourmizzzClient> { FourmizzzClient(resolve(), config.fourmizzz) }
 
         provide(::SyncAlliances)
         provide(::SyncPlayers)

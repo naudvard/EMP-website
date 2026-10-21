@@ -1,29 +1,28 @@
-package fr.nathanaudvard.emp.output.database
+package fr.nathanaudvard.emp.database
 
 import fr.nathanaudvard.emp.db.EmpDatabase
 import fr.nathanaudvard.emp.db.Players
 import fr.nathanaudvard.emp.domain.model.Player
-import fr.nathanaudvard.emp.domain.port.PlayerRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
-class SqlPlayerRepository(database: EmpDatabase) : PlayerRepository {
+class PlayerRepository(database: EmpDatabase) {
     private val queries = database.playerQueries
 
-    override suspend fun replaceVersion(version: String, players: List<Player>) = withContext(Dispatchers.IO) {
+    suspend fun replaceVersion(version: String, players: List<Player>) = withContext(Dispatchers.IO) {
         queries.transaction {
             queries.deleteVersion(version)
-            players.forEach { queries.insert(it.toRow()) }
+            players.forEach { queries.insert(it.toRow(version)) }
         }
     }
 }
 
-private fun Player.toRow() = Players(
+private fun Player.toRow(version: String) = Players(
     version = version,
     id = id,
     pseudo = pseudo,
-    alliance_tag = alliance,
+    alliance_tag = allianceTag,
     master_player_id = masterPlayerId,
     x = x,
     y = y,

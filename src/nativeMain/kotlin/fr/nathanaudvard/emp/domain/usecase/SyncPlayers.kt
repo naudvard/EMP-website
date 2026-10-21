@@ -1,17 +1,19 @@
 package fr.nathanaudvard.emp.domain.usecase
 
+import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.ExportVersion
-import fr.nathanaudvard.emp.domain.model.Player
-import fr.nathanaudvard.emp.domain.port.ExportSource
-import fr.nathanaudvard.emp.domain.port.PlayerRepository
+import fr.nathanaudvard.emp.domain.model.SyncResult
+import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 
 class SyncPlayers(
-    private val exports: ExportSource,
+    private val fourmizzz: FourmizzzClient,
     private val repository: PlayerRepository,
 ) {
-    suspend operator fun invoke(version: ExportVersion): List<Player> {
-        val resolved = exports.resolve(ExportType.PLAYERS, version)
-        return exports.players(resolved).also { repository.replaceVersion(resolved, it) }
+    suspend operator fun invoke(version: ExportVersion): SyncResult {
+        val resolved = fourmizzz.resolve(ExportType.PLAYERS, version)
+        val players = fourmizzz.players(resolved)
+        repository.replaceVersion(resolved, players)
+        return SyncResult(resolved, players.size)
     }
 }

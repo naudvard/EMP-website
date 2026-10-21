@@ -1,9 +1,9 @@
 package fr.nathanaudvard.emp.config
 
+import fr.nathanaudvard.emp.api.dto.ErrorResponse
 import fr.nathanaudvard.emp.domain.exception.ExportNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportUnavailableException
 import fr.nathanaudvard.emp.domain.exception.InvalidVersionException
-import fr.nathanaudvard.emp.input.http.dto.ErrorResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
