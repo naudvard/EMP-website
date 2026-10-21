@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class AppConfig(
     val database: DatabaseConfig,
     val fourmizzz: FourmizzzConfig,
+    val alliance: AllianceConfig,
 )
 
 @Serializable
@@ -17,4 +18,9 @@ data class DatabaseConfig(
 data class FourmizzzConfig(
     val baseUrl: String,
     val timeoutMs: Long,
+)
+
+@Serializable
+data class AllianceConfig(
+    val tag: String,
 )

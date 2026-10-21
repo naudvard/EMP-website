@@ -1,0 +1,10 @@
+deleteVersion:
+DELETE FROM exported_players WHERE version = ?;
+
+insert:
+INSERT INTO exported_players VALUES ?;
+
+latestMembers:
+SELECT id, pseudo FROM exported_players
+WHERE alliance_tag = ? AND version = (SELECT max(version) FROM exported_players)
+ORDER BY pseudo COLLATE NOCASE;

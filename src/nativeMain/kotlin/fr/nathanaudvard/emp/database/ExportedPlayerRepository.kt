@@ -1,0 +1,41 @@
+package fr.nathanaudvard.emp.database
+
+import fr.nathanaudvard.emp.db.EmpDatabase
+import fr.nathanaudvard.emp.db.Exported_players
+import fr.nathanaudvard.emp.domain.model.AllianceMember
+import fr.nathanaudvard.emp.domain.model.ExportedPlayer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
+
+class ExportedPlayerRepository(database: EmpDatabase) {
+    private val queries = database.exportedPlayerQueries
+
+    suspend fun replaceVersion(version: String, players: List<ExportedPlayer>) = withContext(Dispatchers.IO) {
+        queries.transaction {
+            queries.deleteVersion(version)
+            players.forEach { queries.insert(it.toRow(version)) }
+        }
+    }
+
+    suspend fun latestMembers(allianceTag: String): List<AllianceMember> = withContext(Dispatchers.IO) {
+        queries.latestMembers(allianceTag, ::AllianceMember).executeAsList()
+    }
+}
+
+private fun ExportedPlayer.toRow(version: String) = Exported_players(
+    version = version,
+    id = id,
+    pseudo = pseudo,
+    alliance_tag = allianceTag,
+    master_player_id = masterPlayerId,
+    x = x,
+    y = y,
+    field_ = field,
+    grade = grade,
+    building_score = buildingScore,
+    technology_score = technologyScore,
+    trophy_score = trophyScore,
+    on_holiday = onHoliday,
+    is_banned = isBanned,
+)

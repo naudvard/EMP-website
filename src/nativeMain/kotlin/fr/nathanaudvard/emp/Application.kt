@@ -1,6 +1,5 @@
 package fr.nathanaudvard.emp
 
-import fr.nathanaudvard.emp.api.configureRouting
 import fr.nathanaudvard.emp.config.configureMonitoring
 import fr.nathanaudvard.emp.config.configureSerialization
 import fr.nathanaudvard.emp.config.configureStatusPages

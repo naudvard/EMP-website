@@ -103,7 +103,7 @@ class FakeFourmizzz {
     }
 }
 
-class SyncTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
+class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
     val client: HttpClient get() = builder.client
 
     suspend inline fun <reified T : Any> post(resource: T): HttpResponse = client.post(resource)
@@ -118,7 +118,7 @@ class SyncTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: 
 
 private const val FOURMIZZZ_URL = "http://fourmizzz.test"
 
-fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.() -> Unit) {
+fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.() -> Unit) {
     val databasePath = Path(SystemTemporaryDirectory, "site-test-${Random.nextLong().toULong()}.sqlite")
     try {
         testApplication {
@@ -129,6 +129,7 @@ fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.
                     "app.database.path" to databasePath.toString(),
                     "app.fourmizzz.baseUrl" to fourmizzzUrl,
                     "app.fourmizzz.timeoutMs" to "1000",
+                    "app.alliance.tag" to "EMP",
                 )
             }
             externalServices {
@@ -145,11 +146,12 @@ fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.
                 install(ClientContentNegotiation) { json() }
             }
 
-            SyncTestScope(this, fourmizzz).block()
+            AppTestScope(this, fourmizzz).block()
         }
     } finally {
+        // A failed test leaves the database open: deleting it must not hide the failure
         for (suffix in listOf("", "-wal", "-shm")) {
-            SystemFileSystem.delete(Path("$databasePath$suffix"), mustExist = false)
+            runCatching { SystemFileSystem.delete(Path("$databasePath$suffix"), mustExist = false) }
         }
     }
 }

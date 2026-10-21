@@ -4,9 +4,9 @@ import fr.nathanaudvard.emp.config.FourmizzzConfig
 import fr.nathanaudvard.emp.domain.exception.ExportNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportUnavailableException
 import fr.nathanaudvard.emp.domain.exception.InvalidVersionException
-import fr.nathanaudvard.emp.domain.model.Alliance
 import fr.nathanaudvard.emp.domain.model.ExportType
-import fr.nathanaudvard.emp.domain.model.Player
+import fr.nathanaudvard.emp.domain.model.ExportedAlliance
+import fr.nathanaudvard.emp.domain.model.ExportedPlayer
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -38,11 +38,11 @@ class FourmizzzClient(http: HttpClient, config: FourmizzzConfig) {
         return versions[type].firstOrNull() ?: throw ExportNotFoundException(type, "latest")
     }
 
-    suspend fun alliances(version: String): List<Alliance> =
-        fetchExport<AllianceRes>(ExportType.ALLIANCES, version).map { it.toAlliance() }
+    suspend fun alliances(version: String): List<ExportedAlliance> =
+        fetchExport<AllianceRes>(ExportType.ALLIANCES, version).map { it.toExportedAlliance() }
 
-    suspend fun players(version: String): List<Player> =
-        fetchExport<PlayerRes>(ExportType.PLAYERS, version).map { it.toPlayer() }
+    suspend fun players(version: String): List<ExportedPlayer> =
+        fetchExport<PlayerRes>(ExportType.PLAYERS, version).map { it.toExportedPlayer() }
 
     private suspend inline fun <reified T> fetchExport(type: ExportType, version: String): List<T> =
         fetch("api/exports/${type.name.lowercase()}/", version) { status ->

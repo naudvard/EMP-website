@@ -1,14 +1,14 @@
 package fr.nathanaudvard.emp.domain.usecase
 
-import fr.nathanaudvard.emp.database.AllianceRepository
+import fr.nathanaudvard.emp.database.ExportedAllianceRepository
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.ExportVersion
 import fr.nathanaudvard.emp.domain.model.SyncResult
 import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 
-class SyncAlliances(
+class SyncExportedAlliances(
     private val fourmizzz: FourmizzzClient,
-    private val repository: AllianceRepository,
+    private val repository: ExportedAllianceRepository,
 ) {
     suspend operator fun invoke(version: ExportVersion): SyncResult {
         val resolved = fourmizzz.resolve(ExportType.ALLIANCES, version)

@@ -9,3 +9,5 @@ app:
   fourmizzz:
     baseUrl: "$FOURMIZZZ_BASE_URL:https://s5.fourmizzz.fr"
     timeoutMs: "$FOURMIZZZ_TIMEOUT_MS:10000"
+  alliance:
+    tag: "$ALLIANCE_TAG:EMP"

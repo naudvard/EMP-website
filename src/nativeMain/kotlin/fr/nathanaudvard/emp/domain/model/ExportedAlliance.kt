@@ -1,6 +1,6 @@
 package fr.nathanaudvard.emp.domain.model
 
-data class Alliance(
+data class ExportedAlliance(
     val tag: String,
     val name: String,
     val playersCount: Long,
@@ -9,10 +9,10 @@ data class Alliance(
     val totalTechnologyScore: Long,
     val totalTrophyScore: Long,
     val wars: List<String>,
-    val pacts: List<Pact>,
+    val pacts: List<ExportedPact>,
 )
 
-data class Pact(
+data class ExportedPact(
     val tag: String,
     val name: String,
     val description: String,

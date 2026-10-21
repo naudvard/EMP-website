@@ -1,0 +1,4 @@
+-- Laboratoire levels are not part of the laying time: dropped rather than renamed
+ALTER TABLE players DROP COLUMN laboratoire_level;
+ALTER TABLE players RENAME COLUMN couveuse_level TO incubator_level;
+ALTER TABLE players ADD COLUMN laying_technique_level INTEGER;
