@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 
 class HealthControllerTest {
     @Test
-    fun `answers ok`() = syncTest {
+    fun `answers ok`() = appTest {
         val res = client.get(Health())
 
         assertEquals(HttpStatusCode.OK, res.status)

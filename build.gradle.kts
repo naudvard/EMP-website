@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
 import java.net.URI
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
@@ -63,6 +65,16 @@ kotlin {
         }
 
         binaries {
+            all {
+                // The amalgamation is optimised together with the program, but with compiler caches sqliter is a
+                // prebuilt archive: nothing left in the program calls sqlite3_*, so the symbols are stripped and the
+                // link fails. Release builds use no caches. Must be renewed for each Kotlin version.
+                @OptIn(KotlinNativeCacheApi::class)
+                disableNativeCache(
+                    DisableCacheInKotlinVersion.`2_4_21`,
+                    "SQLite compiled with -Xcompile-source is stripped when sqliter comes from the compiler cache",
+                )
+            }
             executable {
                 baseName = "emp"
                 entryPoint = "fr.nathanaudvard.emp.main"
@@ -79,6 +91,7 @@ kotlin {
             implementation(libs.ktor.server.content.negotiation)
             implementation(libs.ktor.server.status.pages)
             implementation(libs.ktor.server.resources)
+            implementation(libs.ktor.server.html.builder)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -92,6 +105,7 @@ kotlin {
             implementation(libs.sqldelight.native.driver)
             implementation(libs.kotlinx.io.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
         }
         nativeTest.dependencies {
             implementation(kotlin("test"))

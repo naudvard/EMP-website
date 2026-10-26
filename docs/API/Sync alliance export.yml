@@ -1,11 +1,11 @@
 info:
-  name: Sync players
+  name: Sync alliance export
   type: http
-  seq: 2
+  seq: 1
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/v1/players/sync"
+  url: "{{baseUrl}}/api/v1/exports/alliances/sync"
   auth: inherit
 
 settings:

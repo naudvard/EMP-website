@@ -7,6 +7,10 @@ import kotlinx.serialization.Serializable
 @Resource("alliances")
 class Alliances(val parent: ApiV1 = ApiV1()) {
     @Serializable
-    @Resource("sync")
-    class Sync(val parent: Alliances = Alliances(), val version: String = "latest")
+    @Resource("{tag}")
+    class Tag(val parent: Alliances = Alliances(), val tag: String) {
+        @Serializable
+        @Resource("wages")
+        class Wages(val parent: Tag, val distribution: String = "minimal")
+    }
 }

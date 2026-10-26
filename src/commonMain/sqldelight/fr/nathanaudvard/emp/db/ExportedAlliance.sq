@@ -1,8 +1,8 @@
 deleteVersion:
-DELETE FROM alliances WHERE version = ?;
+DELETE FROM exported_alliances WHERE version = ?;
 
 insert:
-INSERT INTO alliances (
+INSERT INTO exported_alliances (
     version, tag, name, players_count, total_field,
     total_building_score, total_technology_score, total_trophy_score, wars
 )
@@ -10,5 +10,5 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 insertPact:
-INSERT INTO alliance_pacts (alliance_id, tag, name, description)
+INSERT INTO exported_alliance_pacts (alliance_id, tag, name, description)
 VALUES (?, ?, ?, ?);

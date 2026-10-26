@@ -1,0 +1,44 @@
+insertComputation:
+INSERT INTO wage_computations (alliance_tag, computed_at, export_version, hours, distribution)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id;
+
+insertWage:
+INSERT INTO wages VALUES ?;
+
+insertDelivery:
+INSERT INTO wage_deliveries VALUES ?;
+
+selectComputation:
+SELECT * FROM wage_computations WHERE alliance_tag = ? AND id = ?;
+
+-- Null aggregates when the alliance has no computation
+selectBounds:
+SELECT MAX(id) AS latest_id, MIN(computed_at) AS first_computed_at, MAX(computed_at) AS latest_computed_at
+FROM wage_computations
+WHERE alliance_tag = ?;
+
+selectOlderId:
+SELECT id FROM wage_computations
+WHERE alliance_tag = ? AND id < ?
+ORDER BY id DESC
+LIMIT 1;
+
+selectNewerId:
+SELECT id FROM wage_computations
+WHERE alliance_tag = ? AND id > ?
+ORDER BY id ASC
+LIMIT 1;
+
+-- julianday compares the instants: as text, a fractional second would sort before its whole second
+selectLatestIdBefore:
+SELECT id FROM wage_computations
+WHERE alliance_tag = ? AND julianday(computed_at) < julianday(?)
+ORDER BY id DESC
+LIMIT 1;
+
+selectWages:
+SELECT * FROM wages WHERE computation_id = ?;
+
+selectDeliveries:
+SELECT * FROM wage_deliveries WHERE computation_id = ?;

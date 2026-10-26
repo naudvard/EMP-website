@@ -5,8 +5,8 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import co.touchlab.sqliter.JournalMode
 import co.touchlab.sqliter.SynchronousFlag
-import fr.nathanaudvard.emp.db.Alliances
 import fr.nathanaudvard.emp.db.EmpDatabase
+import fr.nathanaudvard.emp.db.Exported_alliances
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.serialization.json.Json
@@ -40,4 +40,7 @@ private val stringListAdapter = object : ColumnAdapter<List<String>, String> {
 }
 
 fun createDatabase(driver: SqlDriver): EmpDatabase =
-    EmpDatabase(driver, alliancesAdapter = Alliances.Adapter(warsAdapter = stringListAdapter))
+    EmpDatabase(
+        driver,
+        exported_alliancesAdapter = Exported_alliances.Adapter(warsAdapter = stringListAdapter)
+    )

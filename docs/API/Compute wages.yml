@@ -1,11 +1,15 @@
 info:
-  name: Sync alliances
+  name: Compute wages
   type: http
-  seq: 1
+  seq: 3
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/v1/alliances/sync"
+  url: "{{baseUrl}}/api/v1/alliances/EMP/wages?distribution=minimal"
+  params:
+    - name: distribution
+      value: minimal
+      type: query
   auth: inherit
 
 settings:

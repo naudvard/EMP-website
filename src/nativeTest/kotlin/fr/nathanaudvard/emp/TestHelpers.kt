@@ -3,7 +3,9 @@ package fr.nathanaudvard.emp
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
+import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportType
+import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
 import fr.nathanaudvard.emp.fourmizzz.AllianceRes
 import fr.nathanaudvard.emp.fourmizzz.DiplomacyRes
 import fr.nathanaudvard.emp.fourmizzz.ExportVersionsRes
@@ -28,6 +30,8 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.random.Random
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
@@ -103,10 +107,20 @@ class FakeFourmizzz {
     }
 }
 
-class SyncTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
+class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
     val client: HttpClient get() = builder.client
 
     suspend inline fun <reified T : Any> post(resource: T): HttpResponse = client.post(resource)
+
+    suspend fun execute(sql: String) {
+        val driver: SqlDriver = builder.application.dependencies.resolve()
+        driver.execute(null, sql, 0)
+    }
+
+    suspend fun members(allianceTag: String = "EMP"): List<AllianceMember> {
+        val getMembers: GetAllianceMembersUseCase = builder.application.dependencies.resolve()
+        return getMembers(allianceTag)
+    }
 
     suspend fun <T> query(sql: String, mapper: (SqlCursor) -> T): List<T> {
         val driver: SqlDriver = builder.application.dependencies.resolve()
@@ -118,7 +132,9 @@ class SyncTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: 
 
 private const val FOURMIZZZ_URL = "http://fourmizzz.test"
 
-fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.() -> Unit) {
+val NOW: Instant = Instant.parse("2026-10-20T12:30:00Z")
+
+fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.() -> Unit) {
     val databasePath = Path(SystemTemporaryDirectory, "site-test-${Random.nextLong().toULong()}.sqlite")
     try {
         testApplication {
@@ -129,6 +145,7 @@ fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.
                     "app.database.path" to databasePath.toString(),
                     "app.fourmizzz.baseUrl" to fourmizzzUrl,
                     "app.fourmizzz.timeoutMs" to "1000",
+                    "app.alliance.tag" to "EMP",
                 )
             }
             externalServices {
@@ -138,6 +155,7 @@ fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.
             }
             application {
                 dependencies.provide<HttpClient> { this@testApplication.createClient { } }
+                dependencies.provide<Clock> { object : Clock { override fun now() = NOW } }
                 module()
             }
             client = createClient {
@@ -145,11 +163,12 @@ fun syncTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend SyncTestScope.
                 install(ClientContentNegotiation) { json() }
             }
 
-            SyncTestScope(this, fourmizzz).block()
+            AppTestScope(this, fourmizzz).block()
         }
     } finally {
+        // A failed test leaves the database open: deleting it must not hide the failure
         for (suffix in listOf("", "-wal", "-shm")) {
-            SystemFileSystem.delete(Path("$databasePath$suffix"), mustExist = false)
+            runCatching { SystemFileSystem.delete(Path("$databasePath$suffix"), mustExist = false) }
         }
     }
 }

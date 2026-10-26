@@ -1,0 +1,71 @@
+-- Tables are rebuilt rather than renamed: SQLDelight keeps column adapters bound to the old table name
+CREATE TABLE exported_alliances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    name TEXT NOT NULL,
+    players_count INTEGER NOT NULL,
+    total_field INTEGER NOT NULL,
+    total_building_score INTEGER NOT NULL,
+    total_technology_score INTEGER NOT NULL,
+    total_trophy_score INTEGER NOT NULL,
+    wars TEXT AS kotlin.collections.List<kotlin.String> NOT NULL
+);
+
+INSERT INTO exported_alliances
+SELECT id, version, tag, name, players_count, total_field,
+    total_building_score, total_technology_score, total_trophy_score, wars
+FROM alliances;
+
+CREATE TABLE exported_alliance_pacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    alliance_id INTEGER NOT NULL REFERENCES exported_alliances(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL
+);
+
+INSERT INTO exported_alliance_pacts
+SELECT id, alliance_id, tag, name, description FROM alliance_pacts;
+
+DROP TABLE alliance_pacts;
+DROP TABLE alliances;
+
+CREATE UNIQUE INDEX exported_alliances_version_tag_unique ON exported_alliances (version, tag);
+CREATE INDEX exported_alliance_pacts_alliance_id_idx ON exported_alliance_pacts (alliance_id);
+
+CREATE TABLE exported_players (
+    version TEXT NOT NULL,
+    -- Fourmizzz player id: unique within a game server only
+    id INTEGER NOT NULL,
+    pseudo TEXT NOT NULL,
+    alliance_tag TEXT,
+    master_player_id INTEGER,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    field INTEGER NOT NULL,
+    grade TEXT,
+    building_score INTEGER NOT NULL,
+    technology_score INTEGER NOT NULL,
+    trophy_score INTEGER NOT NULL,
+    on_holiday INTEGER AS kotlin.Boolean NOT NULL,
+    is_banned INTEGER AS kotlin.Boolean NOT NULL,
+    PRIMARY KEY (version, id)
+);
+
+INSERT INTO exported_players
+SELECT version, id, pseudo, alliance_tag, master_player_id, x, y, field, grade,
+    building_score, technology_score, trophy_score, on_holiday, is_banned
+FROM players;
+
+DROP TABLE players;
+
+CREATE INDEX exported_players_version_alliance_tag_idx ON exported_players (version, alliance_tag);
+
+CREATE TABLE players (
+    -- Fourmizzz player id
+    id INTEGER PRIMARY KEY NOT NULL,
+    couveuse_level INTEGER,
+    solarium_level INTEGER,
+    laboratoire_level INTEGER
+);

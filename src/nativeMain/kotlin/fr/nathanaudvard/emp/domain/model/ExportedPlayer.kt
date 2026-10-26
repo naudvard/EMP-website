@@ -1,6 +1,6 @@
 package fr.nathanaudvard.emp.domain.model
 
-data class Player(
+data class ExportedPlayer(
     val id: Long,
     val pseudo: String,
     val allianceTag: String?,

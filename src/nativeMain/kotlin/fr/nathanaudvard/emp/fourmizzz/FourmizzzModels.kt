@@ -1,21 +1,16 @@
 package fr.nathanaudvard.emp.fourmizzz
 
-import fr.nathanaudvard.emp.domain.model.Alliance
 import fr.nathanaudvard.emp.domain.model.ExportType
-import fr.nathanaudvard.emp.domain.model.Pact
-import fr.nathanaudvard.emp.domain.model.Player
+import fr.nathanaudvard.emp.domain.model.ExportedAlliance
+import fr.nathanaudvard.emp.domain.model.ExportedPact
+import fr.nathanaudvard.emp.domain.model.ExportedPlayer
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ExportVersionsRes(
     val players: List<String>,
     val alliances: List<String>,
-) {
-    operator fun get(type: ExportType): List<String> = when (type) {
-        ExportType.PLAYERS -> players
-        ExportType.ALLIANCES -> alliances
-    }
-}
+)
 
 @Serializable
 data class PactRes(
@@ -59,7 +54,7 @@ data class PlayerRes(
     val isBanned: Boolean,
 )
 
-fun AllianceRes.toAlliance() = Alliance(
+fun AllianceRes.toExportedAlliance() = ExportedAlliance(
     tag = tag,
     name = name,
     playersCount = playersCount,
@@ -68,10 +63,16 @@ fun AllianceRes.toAlliance() = Alliance(
     totalTechnologyScore = totalTechnologyScore,
     totalTrophyScore = totalTrophyScore,
     wars = diplomacy.wars,
-    pacts = diplomacy.pacts.map { Pact(tag = it.tag, name = it.name, description = it.description) },
+    pacts = diplomacy.pacts.map {
+        ExportedPact(
+            tag = it.tag,
+            name = it.name,
+            description = it.description
+        )
+    },
 )
 
-fun PlayerRes.toPlayer() = Player(
+fun PlayerRes.toExportedPlayer() = ExportedPlayer(
     id = id,
     pseudo = pseudo,
     allianceTag = alliance,

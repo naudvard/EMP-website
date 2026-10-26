@@ -1,0 +1,2 @@
+-- Positive: the player receives this amount, negative: the player gives it
+ALTER TABLE wages RENAME COLUMN wage_to_distribute TO net_wage;
