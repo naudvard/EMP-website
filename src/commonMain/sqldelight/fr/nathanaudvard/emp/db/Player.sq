@@ -8,5 +8,18 @@ ON CONFLICT (id) DO UPDATE SET
     laying_technique_level = coalesce(excluded.laying_technique_level, laying_technique_level),
     aphid_farm_level = coalesce(excluded.aphid_farm_level, aphid_farm_level);
 
+-- A member found by a sync gets the given settlement, unless a choice was saved before. Levels are kept
+insertMember:
+INSERT INTO players (id, wage_settlement) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET wage_settlement = coalesce(wage_settlement, excluded.wage_settlement);
+
 selectByIds:
 SELECT * FROM players WHERE id IN ?;
+
+upsertWageSettlement:
+INSERT INTO players (id, wage_settlement) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET wage_settlement = excluded.wage_settlement;
+
+upsertDebt:
+INSERT INTO players (id, debt) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET debt = excluded.debt;

@@ -1,16 +1,21 @@
 deleteVersion:
-DELETE FROM exported_players WHERE version = ?;
+DELETE FROM exported_players WHERE version = ? AND alliance_tag IN ?;
 
 insert:
 INSERT INTO exported_players VALUES ?;
 
+insertSync:
+INSERT OR IGNORE INTO exported_player_syncs (version, alliance_tag) VALUES (?, ?);
+
+-- The latest version synced for the tag, not the latest one stored: it may have been synced for other tags only
 latestMembers:
 SELECT id, pseudo, master_player_id, grade FROM exported_players
-WHERE alliance_tag = ? AND version = (SELECT max(version) FROM exported_players)
+WHERE alliance_tag = :allianceTag
+    AND version = (SELECT max(version) FROM exported_player_syncs WHERE alliance_tag = :allianceTag)
 ORDER BY pseudo COLLATE NOCASE;
 
 versionsSince:
-SELECT DISTINCT version FROM exported_players WHERE version >= ?;
+SELECT version FROM exported_player_syncs WHERE alliance_tag = ? AND version >= ?;
 
 averageFields:
 SELECT id, avg(field) AS average_field FROM exported_players

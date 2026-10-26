@@ -14,6 +14,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 
 class ComputeWagesTest {
     private val abeille = fourmi.copy(id = 124, pseudo = "Abeille")
@@ -44,13 +45,14 @@ class ComputeWagesTest {
         fourmizzz.players("202610201100", listOf(fourmi.copy(field = 999_999), abeille, intrus))
         fourmizzz.players("202610201130", listOf(fourmi.copy(field = 1_000), abeille.copy(field = 500, masterPlayerId = 123), intrus))
         fourmizzz.players("202610201200", listOf(fourmi.copy(field = 3_000), abeille.copy(field = 500, masterPlayerId = 123), intrus))
-        post(Exports.Players.Sync(version = "202610201200"))
+        sync(Exports.Players.Sync(version = "202610201200"))
         saveLevel("Fourmi", "APHID_FARM", 5)
 
         val res = wages()
 
         assertEquals(HttpStatusCode.OK, res.status)
         val computation = res.body<WageComputationResponse>()
+        assertEquals("2026-10-19T12:30:00Z", computation.since)
         assertEquals("2026-10-20T12:30:00Z", computation.computedAt)
         assertEquals("202610201200", computation.exportVersion)
         assertEquals(2, computation.hours)
@@ -65,10 +67,10 @@ class ComputeWagesTest {
 
         val syncedVersions = query("SELECT DISTINCT version FROM exported_players ORDER BY version") { it.getString(0) }
         assertEquals(listOf("202610201100", "202610201130", "202610201200"), syncedVersions)
-        val stored = query("SELECT alliance_tag, computed_at, export_version, hours, distribution FROM wage_computations") { cursor ->
-            (0..4).map { cursor.getString(it) }
+        val stored = query("SELECT alliance_tag, since, computed_at, export_version, hours, distribution FROM wage_computations") { cursor ->
+            (0..5).map { cursor.getString(it) }
         }
-        assertEquals(listOf(listOf("EMP", "2026-10-20T12:30:00Z", "202610201200", "2", "minimal")), stored)
+        assertEquals(listOf(listOf("EMP", "2026-10-19T12:30:00Z", "2026-10-20T12:30:00Z", "202610201200", "2", "minimal")), stored)
         assertEquals(listOf(2L), query("SELECT count(*) FROM wages") { it.getLong(0) })
         val deliveries = query("SELECT from_player_id, to_player_id, amount FROM wage_deliveries") { cursor ->
             (0..2).map { cursor.getLong(it) }
@@ -79,7 +81,7 @@ class ComputeWagesTest {
     @Test
     fun `shares the alliance production according to laying time needs`() = appTest {
         fourmizzz.players("202610201200", listOf(fourmi, abeille))
-        post(Exports.Players.Sync())
+        sync(Exports.Players.Sync())
         saveLevel("Fourmi", "INCUBATOR", 2)
         saveLevel("Fourmi", "SOLARIUM", 1)
 
@@ -95,9 +97,13 @@ class ComputeWagesTest {
     @Test
     fun `distributes granary surpluses with as few deliveries as possible or proportionally`() = appTest {
         val fields = mapOf(1L to 4_000L, 2L to 3_000L, 3L to 500L, 4L to 1_000L)
-        fourmizzz.players("202610201200", fields.map { (id, field) -> fourmi.copy(id = id, pseudo = "P$id", field = field) })
-
+        val players = fields.map { (id, field) -> fourmi.copy(id = id, pseudo = "P$id", field = field) }
+        // A day apart, so that both share a day of production
+        clock.now = NOW - 24.hours
+        fourmizzz.players("202610191200", players)
         val minimal = wages().body<WageComputationResponse>()
+        clock.now = NOW
+        fourmizzz.players("202610201200", players)
         val proportional = wages(distribution = "proportional").body<WageComputationResponse>()
 
         fun WageComputationResponse.received() = deliveries.groupBy { it.toPseudo }.mapValues { (_, d) -> d.sumOf { it.amount } }
@@ -113,16 +119,82 @@ class ComputeWagesTest {
     }
 
     @Test
+    fun `a giver accumulating debt delivers nothing then repays it by not receiving and by delivering`() = appTest {
+        // Fourmi gives 42_000 to Abeille each day
+        val players = listOf(fourmi.copy(field = 2_000), abeille.copy(field = 500, masterPlayerId = 123))
+        clock.now = NOW - 24.hours
+        fourmizzz.players("202610191200", players)
+        sync(Exports.Players.Sync())
+        saveLevel("Fourmi", "APHID_FARM", 5)
+        execute("UPDATE players SET wage_settlement = 'ACCUMULATE_DEBT' WHERE id = 123")
+
+        val accumulated = wages().body<WageComputationResponse>()
+
+        assertEquals(-42_000L, accumulated.wage("Fourmi").netWage)
+        assertEquals(emptyList(), accumulated.deliveries)
+        assertEquals(listOf(42_000L), query("SELECT debt FROM players WHERE id = 123") { it.getLong(0) })
+
+        execute("UPDATE players SET wage_settlement = 'DELIVER' WHERE id = 123")
+        clock.now = NOW
+        fourmizzz.players("202610201200", players)
+        val repaid = wages().body<WageComputationResponse>()
+
+        assertEquals(listOf(Triple("Fourmi", "Abeille", 84_000L)), repaid.deliveries.map { Triple(it.fromPseudo, it.toPseudo, it.amount) })
+        assertEquals(listOf(0L, 0L), query("SELECT debt FROM players ORDER BY id") { it.getLong(0) })
+    }
+
+    @Test
+    fun `shares the production since the previous computation with the measures taken since`() = appTest {
+        clock.now = NOW - 6.hours
+        fourmizzz.players("202610200600", listOf(fourmi.copy(field = 999_999), abeille))
+        wages()
+        clock.now = NOW
+        fourmizzz.players("202610200700", listOf(fourmi.copy(field = 2_000), abeille))
+        fourmizzz.players("202610201200", listOf(fourmi.copy(field = 4_000), abeille))
+
+        val computation = wages().body<WageComputationResponse>()
+
+        assertEquals("2026-10-20T06:30:00Z", computation.since)
+        assertEquals(2, computation.hours)
+        assertClose(3_000.0, computation.wage("Fourmi").averageField)
+        // A quarter of a day
+        assertEquals(36_000L, computation.wage("Fourmi").selfProduction)
+    }
+
+    @Test
+    fun `returns 404 without any players export since the previous computation`() = appTest {
+        fourmizzz.players("202610201200", listOf(fourmi))
+        wages()
+        clock.now = NOW + 1.hours
+
+        assertEquals(HttpStatusCode.NotFound, wages().status)
+        assertEquals(listOf(1L), query("SELECT count(*) FROM wage_computations") { it.getLong(0) })
+    }
+
+    @Test
     fun `refuses levels saved before they were bounded instead of computing wrong wages`() = appTest {
         fourmizzz.players("202610201200", listOf(fourmi, abeille))
-        post(Exports.Players.Sync())
-        execute("INSERT INTO players (id, incubator_level) VALUES (123, 1000)")
+        sync(Exports.Players.Sync())
+        execute("UPDATE players SET incubator_level = 1000 WHERE id = 123")
 
         val res = wages()
 
         assertEquals(HttpStatusCode.UnprocessableEntity, res.status)
         assertEquals("Levels of player 123 are too high to compute a laying need", res.body<ErrorResponse>().message)
         assertEquals(listOf(0L), query("SELECT count(*) FROM wage_computations") { it.getLong(0) })
+    }
+
+    @Test
+    fun `syncs the alliance from a version stored for another alliance only`() = appTest {
+        fourmizzz.players("202610201200", listOf(fourmi, abeille, intrus))
+        sync(Exports.Players.Sync(), tags = listOf("LRM"))
+
+        val computation = wages().body<WageComputationResponse>()
+
+        assertEquals("202610201200", computation.exportVersion)
+        assertEquals(listOf("Abeille", "Fourmi"), computation.wages.map { it.pseudo }.sorted())
+        val tags = query("SELECT DISTINCT alliance_tag FROM exported_players ORDER BY alliance_tag") { it.getString(0) }
+        assertEquals(listOf("EMP", "LRM"), tags)
     }
 
     @Test

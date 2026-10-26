@@ -37,7 +37,7 @@ class ChainRankTest {
                 fourmi.copy(id = 3, pseudo = "Recrue", grade = null),
             ),
         )
-        post(Exports.Players.Sync(version = "202610201200"))
+        sync(Exports.Players.Sync(version = "202610201200"))
 
         assertEquals(
             listOf(

@@ -10,9 +10,14 @@ import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.database.createDatabase
 import fr.nathanaudvard.emp.database.createSqlDriver
 import fr.nathanaudvard.emp.domain.usecase.ComputeWagesUseCase
+import fr.nathanaudvard.emp.domain.usecase.DeleteConvoyUseCase
+import fr.nathanaudvard.emp.domain.usecase.GetDebtsUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
+import fr.nathanaudvard.emp.domain.usecase.GetWageSettlementsUseCase
+import fr.nathanaudvard.emp.domain.usecase.RecordConvoysUseCase
 import fr.nathanaudvard.emp.domain.usecase.SavePlayerLevelUseCase
+import fr.nathanaudvard.emp.domain.usecase.SaveWageSettlementsUseCase
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedAlliancesUseCase
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedPlayersUseCase
 import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
@@ -56,5 +61,10 @@ fun Application.configureDependencies() {
         provide(::GetWageHistoryUseCase)
         provide(::GetAllianceMembersUseCase)
         provide(::SavePlayerLevelUseCase)
+        provide(::GetWageSettlementsUseCase)
+        provide(::GetDebtsUseCase)
+        provide(::SaveWageSettlementsUseCase)
+        provide(::RecordConvoysUseCase)
+        provide(::DeleteConvoyUseCase)
     }
 }

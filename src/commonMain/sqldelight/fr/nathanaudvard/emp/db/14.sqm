@@ -1,0 +1,13 @@
+-- Convoys a player launched in the game towards a delivery of a computation. Each one is kept, so that what was
+-- delivered can be followed
+CREATE TABLE convoys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    computation_id INTEGER NOT NULL REFERENCES wage_computations(id) ON DELETE CASCADE,
+    from_player_id INTEGER NOT NULL,
+    to_player_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    -- ISO-8601 UTC instant the convoy was recorded
+    sent_at TEXT NOT NULL
+);
+
+CREATE INDEX convoys_computation_id_idx ON convoys (computation_id);

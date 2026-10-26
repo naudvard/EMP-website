@@ -1,0 +1,3 @@
+-- Start of the period the computation covers, the previous computation of the alliance. Null for the computations
+-- made before, which covered the 24 hours before them
+ALTER TABLE wage_computations ADD COLUMN since TEXT;

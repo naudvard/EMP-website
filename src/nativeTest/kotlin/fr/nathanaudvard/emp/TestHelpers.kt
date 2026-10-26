@@ -3,6 +3,7 @@ package fr.nathanaudvard.emp
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
+import fr.nathanaudvard.emp.api.dto.SyncRequest
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
@@ -15,8 +16,11 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.plugins.resources.Resources
 import io.ktor.client.plugins.resources.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -107,10 +111,20 @@ class FakeFourmizzz {
     }
 }
 
-class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz) {
+class TestClock(var now: Instant = NOW) : Clock {
+    override fun now() = now
+}
+
+class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz, val clock: TestClock) {
     val client: HttpClient get() = builder.client
 
     suspend inline fun <reified T : Any> post(resource: T): HttpResponse = client.post(resource)
+
+    suspend inline fun <reified T : Any> sync(resource: T, tags: List<String> = listOf("EMP")): HttpResponse =
+        client.post(resource) {
+            contentType(ContentType.Application.Json)
+            setBody(SyncRequest(tags))
+        }
 
     suspend fun execute(sql: String) {
         val driver: SqlDriver = builder.application.dependencies.resolve()
@@ -139,6 +153,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
     try {
         testApplication {
             val fourmizzz = FakeFourmizzz()
+            val clock = TestClock()
 
             environment {
                 config = MapApplicationConfig(
@@ -155,7 +170,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
             }
             application {
                 dependencies.provide<HttpClient> { this@testApplication.createClient { } }
-                dependencies.provide<Clock> { object : Clock { override fun now() = NOW } }
+                dependencies.provide<Clock> { clock }
                 module()
             }
             client = createClient {
@@ -163,7 +178,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
                 install(ClientContentNegotiation) { json() }
             }
 
-            AppTestScope(this, fourmizzz).block()
+            AppTestScope(this, fourmizzz, clock).block()
         }
     } finally {
         // A failed test leaves the database open: deleting it must not hide the failure

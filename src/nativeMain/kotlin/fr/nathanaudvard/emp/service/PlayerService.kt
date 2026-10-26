@@ -5,6 +5,7 @@ import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.WageSettlement
 
 class PlayerService(
     private val exportedPlayers: ExportedPlayerRepository,
@@ -27,4 +28,19 @@ class PlayerService(
 
     suspend fun saveLevel(playerId: Long, kind: PlayerLevel, level: Long) =
         players.saveLevel(playerId, kind, level)
+
+    // A member without a saved choice delivers
+    suspend fun wageSettlements(members: List<AllianceMember>): Map<Long, WageSettlement> {
+        val saved = players.wageSettlements(members.map { it.id })
+        return members.associate { it.id to (saved[it.id] ?: WageSettlement.DELIVER) }
+    }
+
+    // A member never saved owes nothing
+    suspend fun debts(members: List<AllianceMember>): Map<Long, Long> {
+        val saved = players.debts(members.map { it.id })
+        return members.associate { it.id to (saved[it.id] ?: 0) }
+    }
+
+    suspend fun saveWageSettlements(settlements: Map<Long, WageSettlement>) =
+        players.saveWageSettlements(settlements)
 }

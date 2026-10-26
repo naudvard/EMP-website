@@ -9,8 +9,10 @@ import kotlinx.html.ButtonType
 import kotlinx.html.FlowContent
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
+import kotlinx.html.HTMLTag
 import kotlinx.html.InputType
 import kotlinx.html.a
+import kotlinx.html.article
 import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.form
@@ -18,18 +20,22 @@ import kotlinx.html.h1
 import kotlinx.html.id
 import kotlinx.html.input
 import kotlinx.html.label
+import kotlinx.html.li
 import kotlinx.html.nav
 import kotlinx.html.p
 import kotlinx.html.script
 import kotlinx.html.section
 import kotlinx.html.span
+import kotlinx.html.style
 import kotlinx.html.table
 import kotlinx.html.tbody
 import kotlinx.html.td
 import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
+import kotlinx.html.ul
 import kotlinx.html.unsafe
+import kotlin.math.abs
 import kotlin.time.Instant
 
 private enum class Tab(val id: String, val label: String) {
@@ -63,7 +69,7 @@ fun HTML.wagesPage(history: WageHistory, searchedDate: String? = null) = layout(
     }
 
     p("meta") {
-        +"Calculé le ${formatDateTime(computation.computedAt)} · ${computation.hours} h de mesures sur 24 · répartition ${computation.distribution.label}"
+        +"Calculé le ${formatDateTime(computation.computedAt)} depuis le ${formatDateTime(computation.since)} · ${computation.hours} h de mesures · répartition ${computation.distribution.label}"
     }
     navigator(history, computation.computedAt.gameDate())
 
@@ -155,52 +161,87 @@ private fun FlowContent.deliveries(computation: WageComputation) {
         return
     }
     val pseudos = computation.wages.associate { it.playerId to it.pseudo }
-    val deliveries = computation.deliveries
-        .map {
-            Triple(
-                pseudos.getValue(it.fromPlayerId),
-                pseudos.getValue(it.toPlayerId),
-                it.amount
-            )
-        }
-        .sortedWith(compareBy<Triple<String, String, Long>> { it.first.lowercase() }.thenByDescending { it.third })
+    // One card per giver, with what they send in all and to whom, the largest delivery first
+    val givers = computation.deliveries
+        .groupBy { pseudos.getValue(it.fromPlayerId) }
+        .entries.sortedBy { it.key.lowercase() }
 
-    table {
-        thead {
-            tr {
-                th { +"Donne" }
-                th { +"Reçoit" }
-                th(classes = "amount") { +"Bois" }
-            }
-        }
-        tbody {
-            deliveries.forEachIndexed { index, (from, to, amount) ->
-                // Deliveries are sorted by giver: each giver's first one starts a group
-                tr(if (index == 0 || deliveries[index - 1].first != from) "group-start" else null) {
-                    td { +from }
-                    td { +to }
-                    td("amount") { +formatAmount(amount) }
+    div("givers") {
+        givers.forEach { (giver, sent) ->
+            // What the convoys recorded by the giver cover, per recipient
+            val delivered = sent.associateWith { computation.sent(it.fromPlayerId, it.toPlayerId) }
+            val total = sent.sumOf { it.amount }
+            article("giver") {
+                div(progressClasses("giver-head", delivered.values.sum(), total)) {
+                    progressAttributes(delivered.values.sum(), total)
+                    span("pseudo") { +giver }
+                    span("amount give") { +"${formatAmount(total)} bois" }
+                    progressForScreenReaders(delivered.values.sum(), total)
+                }
+                ul {
+                    sent.sortedByDescending { it.amount }.forEach {
+                        li(progressClasses(null, delivered.getValue(it), it.amount)) {
+                            progressAttributes(delivered.getValue(it), it.amount)
+                            span("pseudo") { +pseudos.getValue(it.toPlayerId) }
+                            span("amount") { +formatAmount(it.amount) }
+                            progressForScreenReaders(delivered.getValue(it), it.amount)
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+// With every recipient sending convoys, a line of progress under each would double the cards: the progress is
+// drawn behind the element instead, a fill of the share sent, and written on hover and for screen readers
+private fun progressClasses(classes: String?, sent: Long, amount: Long): String? {
+    val progress = when {
+        sent <= 0 -> null
+        sent >= amount -> "done"
+        else -> "partial"
+    }
+    return listOfNotNull(classes, progress).joinToString(" ").ifEmpty { null }
+}
+
+// Set before the element's content
+private fun HTMLTag.progressAttributes(sent: Long, amount: Long) {
+    val text = progressText(sent, amount) ?: return
+    attributes["title"] = text
+    if (sent < amount) attributes["style"] = "--sent: ${sent * 100 / amount}%"
+}
+
+private fun FlowContent.progressForScreenReaders(sent: Long, amount: Long) {
+    progressText(sent, amount)?.let { span("visually-hidden") { +it } }
+}
+
+// Each player's balance, drawn as a bar from zero, and the debt they carry once this computation is settled
 private fun FlowContent.summary(computation: WageComputation) {
-    table {
+    val largest = computation.wages.maxOfOrNull { abs(it.netWage) }?.takeIf { it > 0 } ?: 1
+    table("balances") {
         thead {
             tr {
                 th { +"Pseudo" }
-                th(classes = "amount") { +"Reçoit" }
-                th(classes = "amount") { +"Donne" }
+                th(classes = "balance-bar") { attributes["aria-hidden"] = "true" }
+                th(classes = "amount") { +"Solde" }
             }
         }
         tbody {
             computation.wages.sortedBy { it.pseudo.lowercase() }.forEach { wage ->
+                val debt = computation.debts.getValue(wage.playerId)
+                val side = if (wage.netWage >= 0) "receive" else "give"
                 tr {
-                    td { +wage.pseudo }
-                    td("amount") { +(if (wage.netWage > 0) formatAmount(wage.netWage) else "—") }
-                    td("amount") { +(if (wage.netWage < 0) formatAmount(-wage.netWage) else "—") }
+                    td {
+                        +wage.pseudo
+                        if (debt > 0) span("debt") { +"dette ${formatAmount(debt)}" }
+                    }
+                    td("balance-bar") {
+                        attributes["aria-hidden"] = "true"
+                        span("bar $side") { style = "width: ${abs(wage.netWage) * 50 / largest}%" }
+                    }
+                    td("amount $side") {
+                        +formatBalance(wage.netWage)
+                    }
                 }
             }
         }
@@ -209,14 +250,26 @@ private fun FlowContent.summary(computation: WageComputation) {
 
 private const val SCRIPT = """
 const filter = document.getElementById('filter')
+const matches = (element, query) => element.textContent.toLowerCase().includes(query)
 filter.addEventListener('input', () => {
     const query = filter.value.trim().toLowerCase()
     for (const panel of document.querySelectorAll('[role=tabpanel]')) {
         const rows = panel.querySelectorAll('tbody tr')
         for (const row of rows) {
-            row.hidden = query !== '' && !row.textContent.toLowerCase().includes(query)
+            row.hidden = query !== '' && !matches(row, query)
         }
-        const empty = rows.length > 0 && [...rows].every(row => row.hidden)
+        // A giver's card shows all their deliveries when the giver matches, only the matching recipients otherwise
+        const cards = panel.querySelectorAll('.giver')
+        for (const card of cards) {
+            const giverMatches = query === '' || matches(card.querySelector('.giver-head .pseudo'), query)
+            const recipients = card.querySelectorAll('li')
+            for (const recipient of recipients) {
+                recipient.hidden = !giverMatches && !matches(recipient.querySelector('.pseudo'), query)
+            }
+            card.hidden = [...recipients].every(recipient => recipient.hidden)
+        }
+        const items = [...rows, ...cards]
+        const empty = items.length > 0 && items.every(item => item.hidden)
         panel.querySelector('.no-match').hidden = !empty
         const table = panel.querySelector('table')
         if (table) table.hidden = empty

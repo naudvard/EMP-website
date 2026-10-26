@@ -4,14 +4,17 @@ import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
 import fr.nathanaudvard.emp.domain.model.ExportVersion
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.SettledWage
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageDelivery
 import fr.nathanaudvard.emp.domain.model.WageDistribution
+import fr.nathanaudvard.emp.domain.model.WageSettlement
 import fr.nathanaudvard.emp.service.architectureReduction
 import fr.nathanaudvard.emp.service.colonyShare
 import fr.nathanaudvard.emp.service.distribute
 import fr.nathanaudvard.emp.service.layingNeed
 import fr.nathanaudvard.emp.service.layingTechniqueResearchSeconds
+import fr.nathanaudvard.emp.service.settleDebt
 import fr.nathanaudvard.emp.service.theoreticalNeed
 import kotlin.math.abs
 import kotlin.math.pow
@@ -48,16 +51,46 @@ class WageCalculationTest {
 
     @Test
     fun `the remainder left by rounding down stays with the granaries`() {
-        val template = Wage(0, "", 0.0, 0, 0, 0, 0.0, 0.0, 0, 0, 0)
-        val wages = listOf(
-            template.copy(playerId = 1, netWage = -10),
-            template.copy(playerId = 2, netWage = 5),
-            template.copy(playerId = 3, netWage = 4),
-        )
+        val wages = listOf(settled(1, -10), settled(2, 5), settled(3, 4))
 
         assertEquals(listOf(WageDelivery(1, 2, 5), WageDelivery(1, 3, 4)), distribute(wages, WageDistribution.MINIMAL))
         assertEquals(listOf(WageDelivery(1, 2, 5), WageDelivery(1, 3, 4)), distribute(wages, WageDistribution.PROPORTIONAL))
     }
+
+    @Test
+    fun `a receiver repays their debt by not receiving their wage whatever their choice`() {
+        assertEquals(SettledWage(1, 30, 0, 20), settleDebt(wage(1, 30), WageSettlement.DELIVER, 50))
+        assertEquals(SettledWage(1, 30, 10, 0), settleDebt(wage(1, 30), WageSettlement.ACCUMULATE_DEBT, 20))
+    }
+
+    @Test
+    fun `a giver who delivers repays their whole debt and one who accumulates owes their wage on top of it`() {
+        assertEquals(SettledWage(1, -30, -80, 0), settleDebt(wage(1, -30), WageSettlement.DELIVER, 50))
+        assertEquals(SettledWage(1, -30, 0, 80), settleDebt(wage(1, -30), WageSettlement.ACCUMULATE_DEBT, 50))
+    }
+
+    @Test
+    fun `receivers share what the debts repay or hold back`() {
+        // Player 2 repays 20 by delivering, player 3 repays 10 by not receiving: player 4 gets both
+        val repaid = listOf(settled(1, -60), settled(2, -10, debt = 20), settled(3, 30, debt = 10), settled(4, 40))
+        assertEquals(
+            listOf(WageDelivery(1, 4, 60), WageDelivery(2, 4, 10), WageDelivery(2, 3, 20)),
+            distribute(repaid, WageDistribution.MINIMAL),
+        )
+        // Player 2 keeps the 50 they owe: receivers get 50 out of 100, half of their wage each
+        val heldBack = listOf(settled(1, -50), settled(2, -50, accumulate = true), settled(3, 60), settled(4, 40))
+        assertEquals(listOf(WageDelivery(1, 3, 30), WageDelivery(1, 4, 20)), distribute(heldBack, WageDistribution.MINIMAL))
+        assertEquals(listOf(WageDelivery(1, 3, 30), WageDelivery(1, 4, 20)), distribute(heldBack, WageDistribution.PROPORTIONAL))
+    }
+
+    private fun wage(playerId: Long, netWage: Long) = Wage(playerId, "", 0.0, 0, 0, 0, 0.0, 0.0, 0, 0, netWage)
+
+    private fun settled(playerId: Long, netWage: Long, debt: Long = 0, accumulate: Boolean = false) =
+        settleDebt(
+            wage(playerId, netWage),
+            if (accumulate) WageSettlement.ACCUMULATE_DEBT else WageSettlement.DELIVER,
+            debt,
+        )
 
     @Test
     fun `laying needs stay within Long up to the highest accepted levels`() {

@@ -21,8 +21,8 @@ class LevelsPageTest {
             "202610201200",
             listOf(fourmi, fourmi.copy(id = 124, pseudo = "abeille"), fourmi.copy(id = 125, pseudo = "Intrus", alliance = "LRM")),
         )
-        post(Exports.Players.Sync(version = "202610201100"))
-        post(Exports.Players.Sync(version = "202610201200"))
+        sync(Exports.Players.Sync(version = "202610201100"))
+        sync(Exports.Players.Sync(version = "202610201200"))
     }
 
     private suspend fun AppTestScope.submit(pseudo: String, kind: String, level: String): HttpResponse =
@@ -36,7 +36,11 @@ class LevelsPageTest {
         )
 
     private suspend fun AppTestScope.storedLevels() =
-        query("SELECT id, incubator_level, solarium_level, laying_technique_level FROM players") { cursor ->
+        // Synced members have a row without any level
+        query(
+            "SELECT id, incubator_level, solarium_level, laying_technique_level FROM players " +
+                "WHERE coalesce(incubator_level, solarium_level, laying_technique_level, aphid_farm_level) IS NOT NULL",
+        ) { cursor ->
             (0..3).map { cursor.getLong(it) }
         }
 

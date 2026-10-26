@@ -20,6 +20,7 @@ class HomePageTest {
         assertTrue("""<a href="/" aria-current="page">Accueil</a>""" in page)
         assertTrue("""<a href="/wages">Salaires</a>""" in page)
         assertTrue("""<a href="/update-levels">Mes niveaux</a>""" in page)
+        assertTrue("""<a href="/debts">Dettes</a>""" in page)
         assertTrue("Aucun calcul de salaires pour l'instant." in page)
         assertTrue("Aucun membre synchronisé" in page)
     }
@@ -27,7 +28,7 @@ class HomePageTest {
     @Test
     fun `summarizes the latest computation and the members`() = appTest {
         fourmizzz.players("202610201200", listOf(fourmi.copy(id = 1, pseudo = "P1", field = 4_000), fourmi.copy(id = 2, pseudo = "P2", field = 500)))
-        post(Exports.Players.Sync(version = "202610201200"))
+        sync(Exports.Players.Sync(version = "202610201200"))
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "minimal"))
 
         val page = client.get(Home()).bodyAsText()

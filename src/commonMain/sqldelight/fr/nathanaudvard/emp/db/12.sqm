@@ -1,0 +1,2 @@
+-- Debt the player owes once the computation is settled. Computations before debts left none
+ALTER TABLE wages ADD COLUMN debt INTEGER NOT NULL DEFAULT 0;

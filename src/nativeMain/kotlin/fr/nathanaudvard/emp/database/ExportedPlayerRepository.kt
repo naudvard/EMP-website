@@ -12,11 +12,14 @@ import kotlinx.coroutines.withContext
 class ExportedPlayerRepository(database: EmpDatabase) {
     private val queries = database.exportedPlayerQueries
 
-    suspend fun replaceVersion(version: String, players: List<ExportedPlayer>) =
+    // Replaces the members of these alliances only: the version keeps the other alliances synced before
+    suspend fun replaceVersion(version: String, allianceTags: Set<String>, players: List<ExportedPlayer>) =
         withContext(Dispatchers.IO) {
             queries.transaction {
-                queries.deleteVersion(version)
+                queries.deleteVersion(version, allianceTags)
                 players.forEach { queries.insert(it.toRow(version)) }
+                // Recorded even without any member: the alliance is known to be empty in this version
+                allianceTags.forEach { queries.insertSync(version, it) }
             }
         }
 
@@ -27,8 +30,9 @@ class ExportedPlayerRepository(database: EmpDatabase) {
             }.executeAsList()
         }
 
-    suspend fun versionsSince(version: String): List<String> = withContext(Dispatchers.IO) {
-        queries.versionsSince(version).executeAsList()
+    // Versions synced for the alliance
+    suspend fun versionsSince(allianceTag: String, version: String): List<String> = withContext(Dispatchers.IO) {
+        queries.versionsSince(allianceTag, version).executeAsList()
     }
 
     suspend fun averageFields(

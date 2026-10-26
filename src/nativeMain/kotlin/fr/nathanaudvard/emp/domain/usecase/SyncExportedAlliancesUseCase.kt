@@ -7,9 +7,9 @@ import fr.nathanaudvard.emp.domain.model.SyncResult
 import fr.nathanaudvard.emp.service.ExportService
 
 class SyncExportedAlliancesUseCase(private val exports: ExportService) {
-    suspend operator fun invoke(version: ExportVersion): SyncResult {
+    suspend operator fun invoke(version: ExportVersion, tags: Set<String>): SyncResult {
         val resolved = exports.resolve(ExportType.ALLIANCES, version)
             ?: throw ExportNotFoundException(ExportType.ALLIANCES, "latest")
-        return exports.syncAlliances(resolved)
+        return exports.syncAlliances(resolved, tags)
     }
 }

@@ -21,10 +21,11 @@ class ComputeWagesUseCase(
         allianceTag: String,
         distribution: WageDistribution
     ): WageComputation {
+        // The period starts at the previous computation, so that each production is shared once
         val computedAt = clock.now()
-        val since = computedAt - 24.hours
+        val since = wages.bounds(allianceTag).latestComputedAt ?: (computedAt - FIRST_PERIOD)
 
-        val syncedPlayers = exports.syncPlayersSince(since)
+        val syncedPlayers = exports.syncPlayersSince(since, allianceTag)
 
         val measures = exports.latestOfEachHour(syncedPlayers)
         if (measures.isEmpty()) throw ExportNotFoundException(
@@ -41,21 +42,27 @@ class ComputeWagesUseCase(
         val averageFields = players.averageFields(members, measures)
         val levels = players.levels(members)
 
-        val selfProductions = wages.selfProductions(members, averageFields, levels)
+        val selfProductions = wages.selfProductions(members, averageFields, levels, computedAt - since)
         val needs = wages.layingNeeds(levels)
 
         val memberWages = wages.wages(members, averageFields, selfProductions, needs)
+        val settledWages = wages.settleDebts(memberWages, players.wageSettlements(members), players.debts(members))
 
         val computation = WageComputation(
             allianceTag = allianceTag,
+            since = since,
             computedAt = computedAt,
             exportVersion = measures.max(),
             hours = measures.size,
             distribution = distribution,
             wages = memberWages,
-            deliveries = wages.deliveries(memberWages, distribution),
+            deliveries = wages.deliveries(settledWages, distribution),
+            debts = settledWages.associate { it.playerId to it.debt },
         )
         wages.save(computation)
         return computation
     }
 }
+
+// The first computation of an alliance has no previous one to start from
+private val FIRST_PERIOD = 24.hours

@@ -1,5 +1,5 @@
 deleteVersion:
-DELETE FROM exported_alliances WHERE version = ?;
+DELETE FROM exported_alliances WHERE version = ? AND tag IN ?;
 
 insert:
 INSERT INTO exported_alliances (

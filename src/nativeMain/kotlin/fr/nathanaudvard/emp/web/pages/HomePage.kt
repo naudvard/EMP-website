@@ -1,6 +1,7 @@
 package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.WageComputation
+import fr.nathanaudvard.emp.web.resources.Debts
 import fr.nathanaudvard.emp.web.resources.Levels
 import fr.nathanaudvard.emp.web.resources.Wages
 import kotlinx.html.FlowContent
@@ -32,6 +33,9 @@ fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: In
             p("meta") {
                 +if (memberCount == 0) "Aucun membre synchronisé" else "$memberCount membres dans l'alliance"
             }
+        }
+        card(href(Debts()), "Dettes") {
+            p { +"Choisis pour chaque joueur s'il livre ce qu'il doit ou s'il cumule de la dette." }
         }
     }
 }

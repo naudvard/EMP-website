@@ -9,11 +9,12 @@ import kotlinx.coroutines.withContext
 class ExportedAllianceRepository(database: EmpDatabase) {
     private val queries = database.exportedAllianceQueries
 
-    suspend fun replaceVersion(version: String, alliances: List<ExportedAlliance>) =
+    // Replaces these alliances only: the version keeps the other alliances synced before
+    suspend fun replaceVersion(version: String, tags: Set<String>, alliances: List<ExportedAlliance>) =
         withContext(Dispatchers.IO) {
             queries.transaction {
                 // Pacts are deleted by cascade
-                queries.deleteVersion(version)
+                queries.deleteVersion(version, tags)
                 alliances.forEach { alliance ->
                     val id = with(alliance) {
                         queries.insert(

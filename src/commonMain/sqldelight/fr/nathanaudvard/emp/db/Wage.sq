@@ -1,6 +1,6 @@
 insertComputation:
-INSERT INTO wage_computations (alliance_tag, computed_at, export_version, hours, distribution)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO wage_computations (alliance_tag, since, computed_at, export_version, hours, distribution)
+VALUES (?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 insertWage:

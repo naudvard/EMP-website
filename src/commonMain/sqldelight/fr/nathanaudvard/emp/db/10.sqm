@@ -1,0 +1,10 @@
+-- Exports are synced for some alliance tags only: a players version holds the members of the tags it was synced for
+CREATE TABLE exported_player_syncs (
+    version TEXT NOT NULL,
+    alliance_tag TEXT NOT NULL,
+    PRIMARY KEY (version, alliance_tag)
+);
+
+-- Versions stored so far hold the whole export: every tag found in them was synced
+INSERT INTO exported_player_syncs
+SELECT DISTINCT version, alliance_tag FROM exported_players WHERE alliance_tag IS NOT NULL;

@@ -1,0 +1,2 @@
+-- WageSettlement name. Null: the player delivers
+ALTER TABLE players ADD COLUMN wage_settlement TEXT;

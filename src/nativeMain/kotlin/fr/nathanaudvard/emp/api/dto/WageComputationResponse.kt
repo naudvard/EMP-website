@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class WageComputationResponse(
     val allianceTag: String,
+    val since: String,
     val computedAt: String,
     val exportVersion: String,
     val hours: Int,
@@ -28,6 +29,7 @@ data class WageResponse(
     val relativeNeed: Long,
     val grossWage: Long,
     val netWage: Long,
+    val debt: Long,
 )
 
 @Serializable
@@ -43,11 +45,12 @@ fun WageComputation.toResponse(): WageComputationResponse {
     val pseudos = wages.associate { it.playerId to it.pseudo }
     return WageComputationResponse(
         allianceTag = allianceTag,
+        since = since.toString(),
         computedAt = computedAt.toString(),
         exportVersion = exportVersion,
         hours = hours,
         distribution = distribution.name.lowercase(),
-        wages = wages.map { it.toResponse() },
+        wages = wages.map { it.toResponse(debts.getValue(it.playerId)) },
         deliveries = deliveries.map {
             WageDeliveryResponse(
                 it.fromPlayerId,
@@ -60,7 +63,7 @@ fun WageComputation.toResponse(): WageComputationResponse {
     )
 }
 
-fun Wage.toResponse() = WageResponse(
+fun Wage.toResponse(debt: Long) = WageResponse(
     playerId = playerId,
     pseudo = pseudo,
     averageField = averageField,
@@ -72,4 +75,5 @@ fun Wage.toResponse() = WageResponse(
     relativeNeed = relativeNeed,
     grossWage = grossWage,
     netWage = netWage,
+    debt = debt,
 )

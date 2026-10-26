@@ -6,6 +6,12 @@ info:
 http:
   method: POST
   url: "{{baseUrl}}/api/v1/exports/players/sync"
+  body:
+    type: json
+    data: |-
+      {
+        "tags": ["EMP"]
+      }
   auth: inherit
 
 settings:

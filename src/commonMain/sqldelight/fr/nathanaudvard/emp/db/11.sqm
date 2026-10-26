@@ -1,0 +1,2 @@
+-- Wages a player kept instead of delivering, not yet repaid
+ALTER TABLE players ADD COLUMN debt INTEGER NOT NULL DEFAULT 0;
