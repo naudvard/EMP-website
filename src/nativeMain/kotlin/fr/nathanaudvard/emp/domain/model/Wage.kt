@@ -24,6 +24,15 @@ data class WageComputation(
 ) {
     fun wage(pseudo: String): Wage? = wages.find { it.pseudo.equals(pseudo, ignoreCase = true) }
 
+    // Computations made before the detail was stored have none
+    val hasDetail: Boolean get() = wages.all { it.baseProduction != null }
+
+    // Share of the alliance needs, from the needs stored with the computation: the levels may have changed since
+    fun needShare(playerId: Long): Double =
+        wages.single { it.playerId == playerId }.relativeNeed / wages.sumOf { it.relativeNeed.toDouble() }
+
+    fun colonies(masterPlayerId: Long): List<Wage> = wages.filter { it.masterPlayerId == masterPlayerId }
+
     // What the convoys from a player to another add up to
     fun sent(fromPlayerId: Long, toPlayerId: Long): Long =
         convoys.filter { it.fromPlayerId == fromPlayerId && it.toPlayerId == toPlayerId }.sumOf { it.amount }
@@ -67,7 +76,23 @@ data class Wage(
     val grossWage: Long,
     // Gross wage minus self production. Positive: the player receives it, negative: the player gives it
     val netWage: Long,
+    // Detail, null for the computations made before it was stored
+    val baseProduction: Long? = null,
+    // Given to the master (negative) or received from the colonies (positive)
+    val colonyTransfer: Long? = null,
+    // Master in the alliance the player gives to as a colony
+    val masterPlayerId: Long? = null,
+    // What the player receives (positive) or sends (negative) once their debt is settled
+    val settledAmount: Long? = null,
 )
+
+data class SelfProduction(
+    val baseProduction: Long,
+    val colonyTransfer: Long,
+    val masterPlayerId: Long?,
+) {
+    val selfProduction: Long get() = baseProduction + colonyTransfer
+}
 
 // What the player receives (positive) or delivers (negative) once their debt is settled, and the debt left
 data class SettledWage(

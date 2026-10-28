@@ -30,6 +30,10 @@ data class WageResponse(
     val grossWage: Long,
     val netWage: Long,
     val debt: Long,
+    val baseProduction: Long?,
+    val colonyTransfer: Long?,
+    val masterPlayerId: Long?,
+    val settledAmount: Long?,
 )
 
 @Serializable
@@ -76,4 +80,8 @@ fun Wage.toResponse(debt: Long) = WageResponse(
     grossWage = grossWage,
     netWage = netWage,
     debt = debt,
+    baseProduction = baseProduction,
+    colonyTransfer = colonyTransfer,
+    masterPlayerId = masterPlayerId,
+    settledAmount = settledAmount,
 )

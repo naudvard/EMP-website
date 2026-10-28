@@ -39,7 +39,7 @@ fun HTML.myDeliveriesPage(
     form: ConvoyForm = ConvoyForm(),
     error: String? = null,
     recorded: Int? = null,
-) = layout("Mes livraisons") {
+) = layout("Mes livraisons", Tab.DELIVERIES) {
     h1 { +"Mes livraisons" }
     if (latest == null) {
         p("notice") { +"Aucun calcul de salaires pour l'instant." }

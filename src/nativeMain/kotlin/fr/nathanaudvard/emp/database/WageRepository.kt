@@ -50,6 +50,10 @@ class WageRepository(database: EmpDatabase) {
                         gross_wage = it.grossWage,
                         net_wage = it.netWage,
                         debt = computation.debts.getValue(it.playerId),
+                        base_production = it.baseProduction,
+                        colony_transfer = it.colonyTransfer,
+                        master_player_id = it.masterPlayerId,
+                        settled_amount = it.settledAmount,
                     ),
                 )
             }
@@ -140,4 +144,8 @@ private fun Wages.toWage() = Wage(
     relativeNeed = relative_need,
     grossWage = gross_wage,
     netWage = net_wage,
+    baseProduction = base_production,
+    colonyTransfer = colony_transfer,
+    masterPlayerId = master_player_id,
+    settledAmount = settled_amount,
 )

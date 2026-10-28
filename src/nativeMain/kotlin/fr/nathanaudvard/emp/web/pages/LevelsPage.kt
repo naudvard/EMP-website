@@ -27,7 +27,7 @@ fun HTML.levelsPage(
     values: LevelsForm,
     errors: Map<String, String> = emptyMap(),
     saved: String? = null,
-) = layout("Mes niveaux") {
+) = layout("Mes niveaux", Tab.LEVELS) {
     h1 { +"Mes niveaux" }
     p("meta") { +"Ces niveaux servent au calcul des salaires de l'alliance." }
     if (saved != null) {

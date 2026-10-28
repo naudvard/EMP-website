@@ -15,6 +15,7 @@ import fr.nathanaudvard.emp.domain.usecase.SavePlayerLevelUseCase
 import fr.nathanaudvard.emp.domain.usecase.SaveWageSettlementsUseCase
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedAlliancesUseCase
 import fr.nathanaudvard.emp.domain.usecase.SyncExportedPlayersUseCase
+import fr.nathanaudvard.emp.web.controllers.assetsController
 import fr.nathanaudvard.emp.web.controllers.debtsController
 import fr.nathanaudvard.emp.web.controllers.homeController
 import fr.nathanaudvard.emp.web.controllers.levelsController
@@ -40,6 +41,7 @@ suspend fun Application.configureRouting() {
 
     routing {
         healthController()
+        assetsController()
         exportController(syncAlliances, syncPlayers)
         allianceController(computeWagesUseCase)
         homeController(getWageHistory, getMembers, alliance.tag)

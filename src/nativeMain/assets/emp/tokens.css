@@ -1,0 +1,82 @@
+/* Généré depuis le design system EMP : ne pas modifier ici */
+/* EMP — generated from tokens.json */
+:root, [data-theme="light"] {
+  --surface-page: #f5f4f1;
+  --surface-card: #ffffff;
+  --surface-inset: #f5f4f1;
+  --surface-input: #ffffff;
+  --border-subtle: #e4e1db;
+  --border-control: #8c857a;
+  --text-primary: #231c15;
+  --text-secondary: #5f574d;
+  --text-disabled: #cfc8bd;
+  --action-primary: #3a2718;
+  --on-action-primary: #ffffff;
+  --text-link: #3a2718;
+  --focus-ring: #3a2718;
+  --header-bg: #2b1f14;
+  --header-border: #2b1f14;
+  --header-text: #ffffff;
+  --header-tab: #e9dfcf;
+  --header-meta: #d6c9b4;
+  --highlight: #e0a43a;
+  --on-highlight: #2a1a0e;
+  --highlight-row: #f8e7c2;
+  --progress-fill: #8a4f1d;
+  --success: #2f6a31;
+  --success-bg: #e8f1e4;
+  --warning: #a8401b;
+  --on-warning: #ffffff;
+  --warning-bg: #fbece3;
+  --warning-border: #d9997a;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --neutral-bg: #efede8;
+}
+[data-theme="dark"] {
+  --surface-page: #17120d;
+  --surface-card: #221a13;
+  --surface-inset: #2a2119;
+  --surface-input: #1b150f;
+  --border-subtle: #3a2f25;
+  --border-control: #8a7d6c;
+  --text-primary: #f3ece2;
+  --text-secondary: #b9ab98;
+  --text-disabled: #5a4e42;
+  --action-primary: #e9dfcf;
+  --on-action-primary: #231c15;
+  --text-link: #efe6d8;
+  --focus-ring: #f3ece2;
+  --header-border: #3a2f25;
+  --highlight-row: #3d2f17;
+  --progress-fill: #d08a4b;
+  --success: #8fca86;
+  --success-bg: #1d2a1a;
+  --warning: #f0a07c;
+  --on-warning: #231c15;
+  --warning-bg: #34201a;
+  --warning-border: #a8603f;
+  --danger: #ff9b8f;
+  --danger-bg: #3a1d1a;
+  --neutral-bg: #2e261f;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-pill: 999px;
+  --radius-card: 12px;
+  --radius-tile: 10px;
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+.figure { font-family: var(--font-sans); font-size: 30px; line-height: 1.15; font-weight: 600; }
+.page-title { font-family: var(--font-sans); font-size: 22px; line-height: 1.3; font-weight: 600; }
+.card-title { font-family: var(--font-sans); font-size: 18px; line-height: 1.3; font-weight: 600; }
+.player-name { font-family: var(--font-sans); font-size: 16px; line-height: 1.35; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 1.4; font-weight: 400; }
+.small { font-family: var(--font-sans); font-size: 14px; line-height: 1.4; font-weight: 400; }
+.caption { font-family: var(--font-sans); font-size: 13px; line-height: 1.45; font-weight: 400; }
+.badge { font-family: var(--font-sans); font-size: 12px; line-height: 1.2; font-weight: 600; }

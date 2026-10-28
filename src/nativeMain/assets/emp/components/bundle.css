@@ -1,0 +1,112 @@
+/* Généré depuis le design system EMP : ne pas modifier ici */
+/* EMP — composants. Classes CSS posées sur les jetons de tokens.css : charger tokens.css d'abord. */
+
+/* Bandeau et navigation */
+.emp-header { display: flex; align-items: center; gap: 2px; height: 56px; padding: 0 6px 0 16px; background: var(--header-bg); box-shadow: inset 0 -1px 0 var(--header-border); }
+.emp-header--wide { display: block; height: auto; padding: 0; }
+.emp-header__inner { max-width: 1280px; margin: 0 auto; padding: 0 32px; min-height: 60px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; }
+.emp-logo { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; letter-spacing: .08em; color: var(--header-text); text-decoration: none; }
+.emp-logo svg { stroke: var(--highlight); }
+.emp-nav { display: flex; gap: 2px; }
+.emp-tab { display: flex; align-items: center; height: 56px; padding: 0 12px; color: var(--header-tab); font-weight: 600; text-decoration: none; }
+.emp-tab[aria-current="page"] { color: var(--header-text); font-weight: 700; box-shadow: inset 0 -3px 0 var(--highlight); }
+.emp-header--wide .emp-nav { flex: 1; gap: 4px; }
+.emp-header--wide .emp-tab { height: 60px; padding: 0 14px; }
+.emp-header__user { font-size: 14px; color: var(--header-meta); }
+
+/* Cartes et cadres */
+.emp-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); }
+.emp-card--large { padding: 20px 24px; }
+.emp-card--accent { border-color: var(--border-control); }
+.emp-card--warning { border-color: var(--warning-border); }
+.emp-frame { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); overflow: hidden; }
+.emp-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-tile); background: var(--surface-inset); }
+
+/* Boutons */
+.emp-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--radius-pill); background: none; color: var(--text-primary); font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer; }
+.emp-btn--primary { background: var(--action-primary); border-color: var(--action-primary); color: var(--on-action-primary); }
+.emp-btn--secondary { background: var(--surface-card); border-color: var(--border-control); color: var(--text-primary); }
+.emp-btn--subtle { background: var(--surface-card); border-color: var(--border-control); color: var(--text-secondary); font-size: 14px; }
+.emp-btn--link { padding: 0 10px; color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
+.emp-btn--compact { height: 36px; padding: 0 12px; font-size: 14px; }
+.emp-btn--small { height: 30px; padding: 0 10px; font-size: 13px; }
+.emp-btn--block { display: flex; width: 100%; }
+.emp-message .emp-btn--link { color: inherit; }
+
+.emp-disclosure { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 44px; padding: 0 2px; border: 0; background: none; color: var(--text-link); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-align: left; cursor: pointer; }
+.emp-disclosure--card { height: 52px; padding: 0 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--surface-card); text-decoration: none; }
+
+/* Filtres */
+.emp-filter { box-sizing: border-box; display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border: 1px solid var(--border-control); border-radius: var(--radius-pill); background: var(--surface-card); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.emp-filter--warning { color: var(--warning); }
+.emp-filter[aria-pressed="true"] { background: var(--action-primary); border-color: var(--action-primary); color: var(--on-action-primary); }
+
+/* Choix segmenté (boutons radio) */
+.emp-segmented { display: inline-flex; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--border-control); border-radius: var(--radius-pill); background: var(--surface-card); }
+.emp-segmented__option { display: flex; align-items: center; justify-content: center; height: 36px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--text-secondary); font-size: 14px; font-weight: 600; cursor: pointer; }
+.emp-segmented__option input { position: absolute; opacity: 0; }
+.emp-segmented__option:has(input:checked), .emp-segmented__option--active { background: var(--action-primary); color: var(--on-action-primary); }
+.emp-segmented__option--warning:has(input:checked), .emp-segmented__option--warning.emp-segmented__option--active { background: var(--warning); color: var(--on-warning); }
+.emp-segmented--large .emp-segmented__option { height: 40px; font-size: 15px; }
+.emp-segmented--compact .emp-segmented__option { height: auto; padding: 3px 10px; font-size: inherit; }
+
+/* Champs */
+.emp-field { box-sizing: border-box; height: 44px; padding: 0 14px; border: 1px solid var(--border-control); border-radius: var(--radius-pill); background: var(--surface-input); font: inherit; color: var(--text-primary); }
+.emp-field--compact { height: 36px; padding: 0 12px; }
+.emp-textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--border-control); border-radius: var(--radius-card); background: var(--surface-input); font: inherit; color: var(--text-primary); resize: vertical; }
+.emp-textarea--active { border-color: var(--action-primary); }
+
+/* Niveaux */
+.emp-level { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: var(--radius-tile); background: var(--surface-inset); }
+.emp-level__name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.emp-level--changed { background: var(--success-bg); }
+.emp-stepper { box-sizing: border-box; display: flex; align-items: center; height: 48px; padding: 0 1px; border: 1px solid var(--border-control); border-radius: var(--radius-pill); background: var(--surface-card); }
+.emp-level--changed .emp-stepper { border-color: var(--success); }
+.emp-stepper__minus, .emp-stepper__plus { box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 2px; border: 0; border-radius: 50%; background: none; background-clip: content-box; font: inherit; cursor: pointer; }
+.emp-stepper__minus svg, .emp-stepper__plus svg { width: 20px; height: 20px; }
+.emp-stepper__minus { color: var(--text-secondary); }
+.emp-stepper__plus { background-color: var(--action-primary); color: var(--on-action-primary); }
+.emp-stepper__value { flex: 1; width: 100%; min-width: 0; height: 44px; padding: 0; border: 0; background: transparent; text-align: center; font: inherit; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.emp-stepper--compact { height: 44px; }
+.emp-stepper--compact .emp-stepper__minus, .emp-stepper--compact .emp-stepper__plus { width: 40px; height: 40px; }
+.emp-stepper--compact .emp-stepper__minus svg, .emp-stepper--compact .emp-stepper__plus svg { width: 18px; height: 18px; }
+.emp-stepper--compact .emp-stepper__value { flex: none; width: 56px; height: 40px; font-size: 18px; }
+
+/* Lignes (envoi, convoi, réception) */
+.emp-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border-subtle); }
+.emp-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.emp-row__title { font-size: 16px; font-weight: 600; }
+.emp-row__done { font-size: 14px; font-weight: 600; color: var(--success); font-variant-numeric: tabular-nums; }
+
+/* Progression */
+.emp-progress { height: 8px; border-radius: var(--radius-pill); background: var(--border-subtle); overflow: hidden; }
+.emp-progress--thin { height: 6px; }
+.emp-progress--hairline { height: 4px; }
+.emp-progress__bar { height: 100%; background: var(--progress-fill); }
+
+/* Badges et étapes */
+.emp-badge { box-sizing: border-box; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.emp-badge--you { padding: 0 6px; background: var(--highlight); color: var(--on-highlight); font-weight: 700; }
+.emp-badge--leader { border-color: var(--action-primary); color: var(--text-link); }
+.emp-badge--neutral { background: var(--neutral-bg); color: var(--text-link); }
+.emp-badge--solid { background: var(--action-primary); color: var(--on-action-primary); }
+.emp-badge--rank { border-color: var(--border-control); border-radius: var(--radius-tile); font-size: 13px; color: var(--text-primary); }
+.emp-step { flex: none; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: var(--radius-pill); background: var(--neutral-bg); color: var(--text-link); font-size: 12px; font-weight: 600; }
+.emp-step--large { width: 26px; height: 26px; font-size: 14px; }
+
+/* Messages */
+.emp-message { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-tile); font-size: 14px; }
+.emp-message--inline { flex-direction: row; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px 0 12px; }
+.emp-message--success { background: var(--success-bg); color: var(--success); }
+.emp-message--warning { background: var(--warning-bg); color: var(--warning); }
+.emp-message--danger { background: var(--danger-bg); color: var(--danger); }
+.emp-message--info { background: var(--neutral-bg); color: var(--text-link); }
+
+/* Sélecteur de calcul */
+.emp-picker { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); }
+
+/* Tableaux */
+.emp-table { width: 100%; border-collapse: collapse; }
+.emp-table thead tr { background: var(--surface-inset); }
+.emp-table tbody tr { border-top: 1px solid var(--border-subtle); }
+.emp-table tbody tr.emp-table__you { background: var(--highlight-row); }

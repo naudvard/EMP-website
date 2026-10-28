@@ -4,6 +4,7 @@ import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.LayingNeed
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.SelfProduction
 import fr.nathanaudvard.emp.domain.model.SettledWage
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageComputation
@@ -17,28 +18,14 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 class WageService(private val repository: WageRepository) {
-    // Production over the period. Each colony gives a share of its production to its master, if the master is in
-    // the alliance
+    // Production over the period
     fun selfProductions(
         members: List<AllianceMember>,
         averageFields: Map<Long, Double>,
         levels: Map<Long, PlayerLevels>,
         period: Duration,
-    ): Map<Long, Long> {
-        val ids = members.map { it.id }.toSet()
-        val days = period / 1.days
-        val baseProduction =
-            members.associate { it.id to averageFields.getValue(it.id) * WOOD_PER_FIELD_PER_DAY * days }
-        val selfProduction = baseProduction.toMutableMap()
-        for (colony in members) {
-            val master = colony.masterPlayerId?.takeIf { it in ids } ?: continue
-            val share =
-                baseProduction.getValue(colony.id) * colonyShare(levels.getValue(master).aphidFarm)
-            selfProduction[colony.id] = selfProduction.getValue(colony.id) - share
-            selfProduction[master] = selfProduction.getValue(master) + share
-        }
-        return selfProduction.mapValues { floor(it.value).toLong() }
-    }
+    ): Map<Long, SelfProduction> =
+        selfProductions(members, averageFields, levels.mapValues { it.value.aphidFarm }, period / 1.days)
 
     fun layingNeeds(levels: Map<Long, PlayerLevels>): Map<Long, LayingNeed> =
         levels.mapValues { (playerId, levels) -> layingNeed(playerId, levels) }
@@ -47,15 +34,16 @@ class WageService(private val repository: WageRepository) {
     fun wages(
         members: List<AllianceMember>,
         averageFields: Map<Long, Double>,
-        selfProductions: Map<Long, Long>,
+        selfProductions: Map<Long, SelfProduction>,
         needs: Map<Long, LayingNeed>,
     ): List<Wage> {
-        val totalProduction = selfProductions.values.sum().toDouble()
+        val totalProduction = selfProductions.values.sumOf { it.selfProduction }.toDouble()
         // Summed as Double: a few large needs would overflow Long
         val totalRelativeNeed = needs.values.sumOf { it.relativeNeed.toDouble() }
         return members.map { member ->
             val need = needs.getValue(member.id)
-            val selfProduction = selfProductions.getValue(member.id)
+            val production = selfProductions.getValue(member.id)
+            val selfProduction = production.selfProduction
             val grossWage = floor(need.relativeNeed * totalProduction / totalRelativeNeed).toLong()
             Wage(
                 playerId = member.id,
@@ -69,6 +57,9 @@ class WageService(private val repository: WageRepository) {
                 relativeNeed = need.relativeNeed,
                 grossWage = grossWage,
                 netWage = grossWage - selfProduction,
+                baseProduction = production.baseProduction,
+                colonyTransfer = production.colonyTransfer,
+                masterPlayerId = production.masterPlayerId,
             )
         }
     }

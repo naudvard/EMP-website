@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.web.resources.MyDeliveries
@@ -65,7 +66,7 @@ class MyDeliveriesPageTest {
 
         val page = client.get(MyDeliveries(pseudo = "p1")).bodyAsText()
 
-        assertTrue("D'après le dernier calcul, le 20/10/2026 à 14:30." in page)
+        assertTrue("D'après le dernier calcul, le mar. 20${NBSP}oct. 14:30." in page)
         assertTrue("""<strong class="amount give">90 000 bois</strong>à 2 joueurs""" in page)
         assertEquals(listOf(listOf("→ P3", "78 000"), listOf("→ P4", "12 000")), rows(page))
         assertTrue("""<b class="give">−90 000</b>""" in page)
@@ -107,7 +108,7 @@ class MyDeliveriesPageTest {
     fun `navigation links to the page after the levels`() = appTest {
         val page = client.get(MyDeliveries()).bodyAsText()
 
-        assertTrue("""<a href="/update-levels">Mes niveaux</a><a href="/my-deliveries" aria-current="page">Mes livraisons</a>""" in page.replace(Regex(">\\s+<"), "><"))
+        assertTrue("""<a href="/update-levels" class="emp-tab">Niveaux</a><a href="/my-deliveries" class="emp-tab" aria-current="page">Envois</a>""" in page.replace(Regex(">\\s+<"), "><"))
     }
 
     @Test
@@ -119,8 +120,8 @@ class MyDeliveriesPageTest {
         assertEquals(HttpStatusCode.Found, res.status)
         val page = client.get(res.headers[HttpHeaders.Location]!!).bodyAsText()
         assertTrue("Convoi enregistré." in page)
-        assertEquals(listOf(listOf("→ P3", "50 000 livrés, reste 28 000")), progress(page))
-        assertEquals(listOf(listOf("→ P3", "50 000", "20/10/2026 à 14:30")), convoys(page))
+        assertEquals(listOf(listOf("→ P3", "50 000 envoyés, reste 28 000")), progress(page))
+        assertEquals(listOf(listOf("→ P3", "50 000", "mar. 20${NBSP}oct. 14:30")), convoys(page))
     }
 
     @Test
@@ -137,16 +138,16 @@ class MyDeliveriesPageTest {
         )
 
         val page = client.get(MyDeliveries(pseudo = "P1")).bodyAsText()
-        assertEquals(listOf(listOf("→ P3", "✓ livré"), listOf("→ P4", "✓ livré")), progress(page))
+        assertEquals(listOf(listOf("→ P3", "✓ envoyé"), listOf("→ P4", "✓ envoyé")), progress(page))
         assertEquals(
             listOf(
-                listOf("→ P4", "12 000", "20/10/2026 à 14:35"),
-                listOf("→ P3", "28 000", "20/10/2026 à 14:35"),
-                listOf("→ P3", "50 000", "20/10/2026 à 14:30"),
+                listOf("→ P4", "12 000", "mar. 20${NBSP}oct. 14:35"),
+                listOf("→ P3", "28 000", "mar. 20${NBSP}oct. 14:35"),
+                listOf("→ P3", "50 000", "mar. 20${NBSP}oct. 14:30"),
             ),
             convoys(page),
         )
-        assertTrue("""<span class="progress done">✓ livré</span>""" in page)
+        assertTrue("""<span class="progress done">✓ envoyé</span>""" in page)
     }
 
     @Test
@@ -156,7 +157,7 @@ class MyDeliveriesPageTest {
 
         val page = client.get(MyDeliveries(pseudo = "P4")).bodyAsText()
 
-        assertEquals(listOf(listOf("← P1", "2 000 livrés, reste 10 000")), progress(page))
+        assertEquals(listOf(listOf("← P1", "2 000 envoyés, reste 10 000")), progress(page))
         assertTrue(convoys(page).isEmpty())
     }
 

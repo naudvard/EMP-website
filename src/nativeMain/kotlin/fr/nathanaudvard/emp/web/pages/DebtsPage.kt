@@ -29,7 +29,7 @@ fun HTML.debtsPage(
     debts: Map<Long, Long>,
     error: String? = null,
     saved: Boolean = false,
-) = layout("Dettes") {
+) = layout("Dettes", Tab.DEBTS) {
     h1 { +"Dettes" }
     p("meta") { +"Pour chaque joueur, choisis s'il livre ce qu'il doit ou s'il le cumule en dette." }
     if (saved) {

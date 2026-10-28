@@ -1,9 +1,11 @@
 package fr.nathanaudvard.emp
 
 import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
+import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportVersion
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.SelfProduction
 import fr.nathanaudvard.emp.domain.model.SettledWage
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageDelivery
@@ -14,6 +16,7 @@ import fr.nathanaudvard.emp.service.colonyShare
 import fr.nathanaudvard.emp.service.distribute
 import fr.nathanaudvard.emp.service.layingNeed
 import fr.nathanaudvard.emp.service.layingTechniqueResearchSeconds
+import fr.nathanaudvard.emp.service.selfProductions
 import fr.nathanaudvard.emp.service.settleDebt
 import fr.nathanaudvard.emp.service.theoreticalNeed
 import kotlin.math.abs
@@ -47,6 +50,27 @@ class WageCalculationTest {
         assertClose(0.81, architectureReduction(2))
         assertClose(0.20, colonyShare(0))
         assertClose(0.25, colonyShare(5))
+    }
+
+    @Test
+    fun `a colony share is rounded once so that self productions add up to the harvest`() {
+        val members = listOf(
+            AllianceMember(1, "Maître", null, null),
+            AllianceMember(2, "Colonie", 1, null),
+            AllianceMember(3, "Colonie bis", 1, null),
+            AllianceMember(4, "Seule", null, null),
+            AllianceMember(5, "Colonie d'ailleurs", 99, null),
+        )
+        val fields = mapOf(1L to 1_001.3, 2L to 333.7, 3L to 57.9, 4L to 12.1, 5L to 640.3)
+
+        val productions = selfProductions(members, fields, mapOf(1L to 7L), 0.37)
+
+        assertEquals(productions.values.sumOf { it.baseProduction }, productions.values.sumOf { it.selfProduction })
+        val given = listOf(2L, 3L).map { productions.getValue(it) }
+        assertEquals(listOf(-1_600L, -277L), given.map { it.colonyTransfer })
+        assertEquals(1_877L, productions.getValue(1).colonyTransfer)
+        assertEquals(listOf(1L, 1L), given.map { it.masterPlayerId })
+        assertEquals(SelfProduction(11_371, 0, null), productions.getValue(5))
     }
 
     @Test

@@ -13,6 +13,7 @@ import io.ktor.http.parameters
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 
@@ -64,6 +65,12 @@ class ComputeWagesTest {
         assertEquals(-42_000L, computation.wage("Fourmi").netWage)
         assertEquals(42_000L, computation.wage("Abeille").netWage)
         assertEquals(listOf(Triple("Fourmi", "Abeille", 42_000L)), computation.deliveries.map { Triple(it.fromPseudo, it.toPseudo, it.amount) })
+        with(computation.wage("Abeille")) {
+            assertEquals(listOf(24_000L, -6_000L, 123L, 42_000L), listOf(baseProduction, colonyTransfer, masterPlayerId, settledAmount))
+        }
+        with(computation.wage("Fourmi")) {
+            assertEquals(listOf(96_000L, 6_000L, null, -42_000L), listOf(baseProduction, colonyTransfer, masterPlayerId, settledAmount))
+        }
 
         val syncedVersions = query("SELECT DISTINCT version FROM exported_players ORDER BY version") { it.getString(0) }
         assertEquals(listOf("202610201100", "202610201130", "202610201200"), syncedVersions)
@@ -141,6 +148,23 @@ class ComputeWagesTest {
 
         assertEquals(listOf(Triple("Fourmi", "Abeille", 84_000L)), repaid.deliveries.map { Triple(it.fromPseudo, it.toPseudo, it.amount) })
         assertEquals(listOf(0L, 0L), query("SELECT debt FROM players ORDER BY id") { it.getLong(0) })
+    }
+
+    @Test
+    fun `keeps the detail of each wage and tells when an older computation has none`() = appTest {
+        fourmizzz.players("202610201200", listOf(fourmi.copy(field = 2_000), abeille.copy(field = 500, masterPlayerId = 123)))
+        sync(Exports.Players.Sync())
+        saveLevel("Fourmi", "APHID_FARM", 5)
+        wages()
+
+        val computation = latestComputation()
+        assertTrue(computation.hasDetail)
+        assertEquals(listOf("Abeille"), computation.colonies(123).map { it.pseudo })
+        assertClose(0.5, computation.needShare(123))
+        assertEquals(42_000L, computation.wage("Abeille")?.settledAmount)
+
+        execute("UPDATE wages SET base_production = NULL, colony_transfer = NULL, master_player_id = NULL, settled_amount = NULL")
+        assertFalse(latestComputation().hasDetail)
     }
 
     @Test

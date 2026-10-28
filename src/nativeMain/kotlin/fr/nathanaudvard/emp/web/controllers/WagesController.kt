@@ -24,6 +24,10 @@ fun Route.wagesController(getWageHistory: GetWageHistoryUseCase, allianceTag: St
         }
         // An unknown id is said on the page: StatusPages would replace a 404 page with its JSON error
         val history = getWageHistory(allianceTag, page.id, before)
-        call.respondHtml { wagesPage(history, searchedDate = page.date.takeIf { page.id == null }) }
+        // No identity yet (EMP-09, EMP-10): no viewer, and no one is a chief
+        val chief = false
+        call.respondHtml {
+            wagesPage(history, searchedDate = page.date.takeIf { page.id == null }, chief = chief, detail = page.detail == 1)
+        }
     }
 }

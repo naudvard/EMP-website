@@ -14,7 +14,7 @@ import kotlinx.html.p
 import kotlinx.html.section
 import kotlinx.html.span
 
-fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: Int) = layout("Accueil") {
+fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: Int) = layout("Accueil", Tab.HOME) {
     h1 { +"Alliance $allianceTag" }
     p("meta") { +"Salaires et niveaux des membres de l'alliance." }
     div("cards") {

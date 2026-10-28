@@ -6,7 +6,10 @@ import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.api.dto.SyncRequest
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportType
+import fr.nathanaudvard.emp.domain.model.WageComputation
+import fr.nathanaudvard.emp.domain.model.WageHistory
 import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
+import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
 import fr.nathanaudvard.emp.fourmizzz.AllianceRes
 import fr.nathanaudvard.emp.fourmizzz.DiplomacyRes
 import fr.nathanaudvard.emp.fourmizzz.ExportVersionsRes
@@ -134,6 +137,16 @@ class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: F
     suspend fun members(allianceTag: String = "EMP"): List<AllianceMember> {
         val getMembers: GetAllianceMembersUseCase = builder.application.dependencies.resolve()
         return getMembers(allianceTag)
+    }
+
+    suspend fun latestComputation(allianceTag: String = "EMP"): WageComputation {
+        val getWageHistory: GetWageHistoryUseCase = builder.application.dependencies.resolve()
+        return checkNotNull(getWageHistory(allianceTag).selected)
+    }
+
+    suspend fun wageHistory(allianceTag: String = "EMP"): WageHistory {
+        val getWageHistory: GetWageHistoryUseCase = builder.application.dependencies.resolve()
+        return getWageHistory(allianceTag)
     }
 
     suspend fun <T> query(sql: String, mapper: (SqlCursor) -> T): List<T> {

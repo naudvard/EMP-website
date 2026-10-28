@@ -1,0 +1,7 @@
+-- Detail of each wage. Null for the computations made before it was stored
+ALTER TABLE wages ADD COLUMN base_production INTEGER;
+-- Given to the master (negative) or received from the colonies (positive)
+ALTER TABLE wages ADD COLUMN colony_transfer INTEGER;
+ALTER TABLE wages ADD COLUMN master_player_id INTEGER;
+-- What the player receives (positive) or sends (negative) once their debt is settled
+ALTER TABLE wages ADD COLUMN settled_amount INTEGER;

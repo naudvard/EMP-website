@@ -47,6 +47,7 @@ class ComputeWagesUseCase(
 
         val memberWages = wages.wages(members, averageFields, selfProductions, needs)
         val settledWages = wages.settleDebts(memberWages, players.wageSettlements(members), players.debts(members))
+        val settledAmounts = settledWages.associate { it.playerId to it.amount }
 
         val computation = WageComputation(
             allianceTag = allianceTag,
@@ -55,7 +56,7 @@ class ComputeWagesUseCase(
             exportVersion = measures.max(),
             hours = measures.size,
             distribution = distribution,
-            wages = memberWages,
+            wages = memberWages.map { it.copy(settledAmount = settledAmounts.getValue(it.playerId)) },
             deliveries = wages.deliveries(settledWages, distribution),
             debts = settledWages.associate { it.playerId to it.debt },
         )

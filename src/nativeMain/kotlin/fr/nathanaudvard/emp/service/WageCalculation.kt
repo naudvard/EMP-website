@@ -1,8 +1,10 @@
 package fr.nathanaudvard.emp.service
 
 import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
+import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.LayingNeed
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.SelfProduction
 import fr.nathanaudvard.emp.domain.model.SettledWage
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageDelivery
@@ -15,7 +17,36 @@ import kotlin.math.pow
 internal const val WOOD_PER_FIELD_PER_DAY = 48.0
 internal const val SECONDS_PER_DAY = 86_400.0
 
-internal fun colonyShare(aphidFarmLevel: Long): Double = (20 + aphidFarmLevel) / 100.0
+internal const val COLONY_BASE_SHARE_PERCENT = 20
+internal const val COLONY_SHARE_PERCENT_PER_APHID_FARM_LEVEL = 1
+
+internal fun colonyShare(aphidFarmLevel: Long): Double =
+    (COLONY_BASE_SHARE_PERCENT + COLONY_SHARE_PERCENT_PER_APHID_FARM_LEVEL * aphidFarmLevel) / 100.0
+
+// Each colony gives a share of its production to its master, if the master is in the alliance. The share is rounded
+// once, so that what a colony gives is what its master receives
+internal fun selfProductions(
+    members: List<AllianceMember>,
+    averageFields: Map<Long, Double>,
+    aphidFarmLevels: Map<Long, Long>,
+    days: Double,
+): Map<Long, SelfProduction> {
+    val ids = members.map { it.id }.toSet()
+    val baseProductions =
+        members.associate { it.id to floor(averageFields.getValue(it.id) * WOOD_PER_FIELD_PER_DAY * days).toLong() }
+    val masters = members.associate { it.id to it.masterPlayerId?.takeIf { master -> master in ids } }
+    val shares = masters.mapValues { (colony, master) ->
+        master?.let { floor(baseProductions.getValue(colony) * colonyShare(aphidFarmLevels.getValue(it))).toLong() } ?: 0
+    }
+    return members.associate { member ->
+        val received = masters.filterValues { it == member.id }.keys.sumOf { shares.getValue(it) }
+        member.id to SelfProduction(
+            baseProduction = baseProductions.getValue(member.id),
+            colonyTransfer = received - shares.getValue(member.id),
+            masterPlayerId = masters.getValue(member.id),
+        )
+    }
+}
 
 internal fun theoreticalNeed(layingTime: Long): Double = 10_000 * 2.0.pow(layingTime / 3.0)
 
