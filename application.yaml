@@ -11,3 +11,6 @@ app:
     timeoutMs: "$FOURMIZZZ_TIMEOUT_MS:10000"
   alliance:
     tag: "$ALLIANCE_TAG:EMP"
+  publicUrl: "$PUBLIC_URL:"
+  api:
+    token: "$API_TOKEN:"

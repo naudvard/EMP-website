@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp.web.pages
 
+import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageDelivery
@@ -23,62 +24,58 @@ import kotlinx.html.label
 import kotlinx.html.li
 import kotlinx.html.option
 import kotlinx.html.p
-import kotlinx.html.script
 import kotlinx.html.section
 import kotlinx.html.span
 import kotlinx.html.strong
 import kotlinx.html.textArea
 import kotlinx.html.ul
-import kotlinx.html.unsafe
 
 // Only the latest computation: a player wants to know what is left to do, and the convoys they launched towards it.
 // The form and its error are those of convoys that could not be recorded, recorded the number of those just recorded
 fun HTML.myDeliveriesPage(
     latest: WageComputation?,
-    pseudo: String?,
+    pseudo: String,
+    viewer: Viewer,
     form: ConvoyForm = ConvoyForm(),
     error: String? = null,
     recorded: Int? = null,
 ) = layout("Mes livraisons", Tab.DELIVERIES) {
-    h1 { +"Mes livraisons" }
+    h1 { +(if (pseudo.equals(viewer.pseudo, ignoreCase = true)) "Mes livraisons" else "Livraisons de $pseudo") }
     if (latest == null) {
         p("notice") { +"Aucun calcul de salaires pour l'instant." }
         return@layout
     }
     p("meta") { +"D'après le dernier calcul, le ${formatDateTime(latest.computedAt)}." }
 
-    form(action = href(MyDeliveries()), method = FormMethod.get, classes = "who") {
-        label {
-            htmlFor = "pseudo"
-            +"Je suis"
+    // A chief records the convoys of any player
+    if (viewer.chief) {
+        form(action = href(MyDeliveries()), method = FormMethod.get, classes = "who") {
+            label {
+                htmlFor = "pseudo"
+                +"Joueur"
+            }
+            empBadge(BadgeVariant.LEADER, "Chef")
+            input(InputType.text, name = "pseudo") {
+                id = "pseudo"
+                value = pseudo
+                required = true
+                attributes["list"] = "players"
+                attributes["autocomplete"] = "off"
+            }
+            dataList {
+                id = "players"
+                latest.wages.sortedBy { it.pseudo.lowercase() }.forEach { option { value = it.pseudo } }
+            }
+            button(type = ButtonType.submit) { +"Voir" }
         }
-        input(InputType.text, name = "pseudo") {
-            id = "pseudo"
-            pseudo?.let { value = it }
-            placeholder = "Ton pseudo"
-            required = true
-            attributes["list"] = "players"
-            attributes["autocomplete"] = "off"
-        }
-        dataList {
-            id = "players"
-            latest.wages.sortedBy { it.pseudo.lowercase() }.forEach { option { value = it.pseudo } }
-        }
-        button(type = ButtonType.submit) { +"Voir" }
     }
 
-    if (pseudo == null) {
-        // The player chosen last time is shown directly
-        script { unsafe { +SCRIPT } }
-        return@layout
-    }
     val wage = latest.wage(pseudo)
     if (wage == null) {
         p("notice error") { +"$pseudo n'est pas dans le dernier calcul." }
     } else {
         mine(latest, wage)
-        convoys(latest, wage, form, error, recorded)
-        script { unsafe { +"try { localStorage.setItem('pseudo', ${jsString(wage.pseudo)}) } catch {}" } }
+        convoys(latest, wage, viewer.canEdit(wage.playerId), form, error, recorded)
     }
 }
 
@@ -143,10 +140,12 @@ private fun FlowContent.transfers(
 // Id of the convoys section, where the page is opened once convoys are recorded or removed
 const val CONVOYS = "convoys"
 
-// The convoys the player launched, the latest first, kept as they were recorded until the player removes one
+// The convoys the player launched, the latest first, kept as they were recorded until the player removes one.
+// Only the player and the chiefs can record or remove them
 private fun FlowContent.convoys(
     computation: WageComputation,
     wage: Wage,
+    editable: Boolean,
     form: ConvoyForm,
     error: String?,
     recorded: Int?,
@@ -160,7 +159,7 @@ private fun FlowContent.convoys(
             p("notice success") { +(if (it > 1) "$it convois enregistrés." else "Convoi enregistré.") }
         }
         error?.let { p("notice error") { +it } }
-        form(action = href(MyDeliveries(wage.pseudo)), method = FormMethod.post, classes = "convoy-form") {
+        if (editable) form(action = href(MyDeliveries(wage.pseudo)), method = FormMethod.post, classes = "convoy-form") {
             label {
                 htmlFor = "message"
                 +"Message du jeu après l'envoi"
@@ -183,7 +182,7 @@ private fun FlowContent.convoys(
                         span("pseudo") { +"→ $recipient" }
                         span("amount give") { +formatAmount(convoy.amount) }
                         span("when") { +formatDateTime(convoy.sentAt) }
-                        form(
+                        if (editable) form(
                             action = href(MyDeliveries.DeleteConvoy(MyDeliveries(wage.pseudo), convoy.id)),
                             method = FormMethod.post,
                         ) {
@@ -198,23 +197,3 @@ private fun FlowContent.convoys(
         }
     }
 }
-
-// A JavaScript string literal of the text: JSON escapes are valid in it, and "</" cannot close the script
-private fun jsString(text: String) = buildString {
-    append('"')
-    text.forEach { char ->
-        when {
-            char == '"' || char == '\\' || char == '/' -> append('\\').append(char)
-            char < ' ' -> append("\\u").append(char.code.toString(16).padStart(4, '0'))
-            else -> append(char)
-        }
-    }
-    append('"')
-}
-
-private const val SCRIPT = """
-try {
-    const pseudo = localStorage.getItem('pseudo')
-    if (pseudo) location.replace('?pseudo=' + encodeURIComponent(pseudo))
-} catch {}
-"""

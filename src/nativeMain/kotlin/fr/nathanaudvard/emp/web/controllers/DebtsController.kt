@@ -1,5 +1,7 @@
 package fr.nathanaudvard.emp.web.controllers
 
+import fr.nathanaudvard.emp.config.requireChief
+import fr.nathanaudvard.emp.config.viewer
 import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetDebtsUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetWageSettlementsUseCase
@@ -28,10 +30,13 @@ fun Route.debtsController(
         val members = getMembers(allianceTag)
         val settlements = getSettlements(members)
         val debts = getDebts(members)
-        call.respondHtml { debtsPage(call.application.href(Debts()), members, settlements, debts, saved = page.saved == true) }
+        call.respondHtml {
+            debtsPage(call.application.href(Debts()), call.viewer, members, settlements, debts, saved = page.saved == true)
+        }
     }
 
     post<Debts> {
+        val chief = call.requireChief()
         val members = getMembers(allianceTag)
         when (val result = DebtsForm.from(call.receiveParameters()).validate(members)) {
             is DebtsValidation.Valid -> {
@@ -43,7 +48,7 @@ fun Route.debtsController(
                 val settlements = getSettlements(members)
                 val debts = getDebts(members)
                 call.respondHtml(HttpStatusCode.BadRequest) {
-                    debtsPage(call.application.href(Debts()), members, settlements, debts, result.error)
+                    debtsPage(call.application.href(Debts()), chief, members, settlements, debts, result.error)
                 }
             }
         }

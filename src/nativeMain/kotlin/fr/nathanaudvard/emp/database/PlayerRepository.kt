@@ -7,6 +7,7 @@ import fr.nathanaudvard.emp.domain.model.WageSettlement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import kotlin.time.Instant
 
 class PlayerRepository(database: EmpDatabase) {
     private val queries = database.playerQueries
@@ -52,6 +53,23 @@ class PlayerRepository(database: EmpDatabase) {
     suspend fun debts(playerIds: Collection<Long>): Map<Long, Long> =
         withContext(Dispatchers.IO) {
             queries.selectByIds(playerIds).executeAsList().associate { it.id to it.debt }
+        }
+
+    suspend fun chiefs(playerIds: Collection<Long>): Set<Long> =
+        withContext(Dispatchers.IO) {
+            queries.selectByIds(playerIds).executeAsList().filter { it.is_chief != 0L }.map { it.id }.toSet()
+        }
+
+    suspend fun setChief(playerId: Long, chief: Boolean) =
+        withContext(Dispatchers.IO) {
+            queries.upsertChief(playerId, if (chief) 1 else 0)
+        }
+
+    suspend fun lastSeen(playerIds: Collection<Long>): Map<Long, Instant> =
+        withContext(Dispatchers.IO) {
+            queries.selectByIds(playerIds).executeAsList()
+                .mapNotNull { row -> row.last_seen_at?.let { row.id to Instant.parse(it) } }
+                .toMap()
         }
 
     suspend fun saveWageSettlements(settlements: Map<Long, WageSettlement>) =

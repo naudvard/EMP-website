@@ -50,10 +50,12 @@ class MyDeliveriesPageTest {
         clock.now = NOW
         fourmizzz.players("202610201200", players)
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "minimal"))
+        signIn("P3")
     }
 
     @Test
     fun `says when no wages have been computed yet`() = appTest {
+        syncAndSignIn()
         val res = client.get(MyDeliveries(pseudo = "P1"))
 
         assertEquals(HttpStatusCode.OK, res.status)
@@ -70,7 +72,6 @@ class MyDeliveriesPageTest {
         assertTrue("""<strong class="amount give">90 000 bois</strong>à 2 joueurs""" in page)
         assertEquals(listOf(listOf("→ P3", "78 000"), listOf("→ P4", "12 000")), rows(page))
         assertTrue("""<b class="give">−90 000</b>""" in page)
-        assertTrue("""localStorage.setItem('pseudo', "P1")""" in page)
         assertFalse("Plus ancien" in page)
     }
 
@@ -101,11 +102,11 @@ class MyDeliveriesPageTest {
 
         assertTrue("Inconnu n'est pas dans le dernier calcul." in page)
         assertTrue("""value="Inconnu"""" in page)
-        assertFalse("localStorage.setItem" in page)
     }
 
     @Test
     fun `navigation links to the page after the levels`() = appTest {
+        syncAndSignIn()
         val page = client.get(MyDeliveries()).bodyAsText()
 
         assertTrue("""<a href="/update-levels" class="emp-tab">Niveaux</a><a href="/my-deliveries" class="emp-tab" aria-current="page">Envois</a>""" in page.replace(Regex(">\\s+<"), "><"))
@@ -196,18 +197,47 @@ class MyDeliveriesPageTest {
     }
 
     @Test
-    fun `removes a convoy only for the player who sent it`() = appTest {
+    fun `removes a convoy only for the player who sent it or a chief`() = appTest {
         computeTwice()
-        send("P1", "Vous allez livrer 0 nourritures et 50 000 materiaux à P3 dans 1H - Annuler")
-        val id = query("SELECT id FROM convoys") { it.getLong(0)!! }.single()
+        send("P1", "Vous allez livrer 0 nourritures et 50 000 materiaux à P3 dans 1H - Annuler")
+        send("P1", "Vous allez livrer 0 nourritures et 2 000 materiaux à P4 dans 1H - Annuler")
+        val (first, second) = query("SELECT id FROM convoys ORDER BY id") { it.getLong(0)!! }
 
-        client.submitForm("/my-deliveries/convoys/$id/delete?pseudo=P2", parameters { })
-        assertEquals(1, query("SELECT id FROM convoys") { it.getLong(0) }.size)
-        val res = client.submitForm("/my-deliveries/convoys/$id/delete?pseudo=P1", parameters { })
+        signIn("P2", chief = false)
+        client.submitForm("/my-deliveries/convoys/$first/delete?pseudo=P2", parameters { })
+        val forbidden = client.submitForm("/my-deliveries/convoys/$first/delete?pseudo=P1", parameters { })
+        assertEquals(HttpStatusCode.Forbidden, forbidden.status)
+        assertEquals(2, query("SELECT id FROM convoys") { it.getLong(0) }.size)
 
+        signIn("P1", chief = false)
+        val res = client.submitForm("/my-deliveries/convoys/$first/delete?pseudo=P1", parameters { })
         assertEquals(HttpStatusCode.Found, res.status)
         assertEquals("/my-deliveries?pseudo=P1#convoys", res.headers[HttpHeaders.Location])
+        assertEquals(listOf(listOf("→ P4", "2 000 envoyés, reste 10 000")), progress(client.get(MyDeliveries()).bodyAsText()))
+
+        signIn("P3")
+        client.submitForm("/my-deliveries/convoys/$second/delete?pseudo=P1", parameters { })
         assertTrue(query("SELECT id FROM convoys") { it.getLong(0) }.isEmpty())
-        assertTrue(progress(client.get(MyDeliveries(pseudo = "P1")).bodyAsText()).isEmpty())
+    }
+
+    @Test
+    fun `a member sees everyone's deliveries and records their own convoys only`() = appTest {
+        computeTwice()
+        signIn("P2", chief = false)
+
+        val own = client.get(MyDeliveries()).bodyAsText()
+        val other = client.get(MyDeliveries(pseudo = "P1")).bodyAsText()
+        val forbidden = send("P1", "Vous allez livrer 0 nourritures et 50 000 materiaux à P3 dans 1H - Annuler")
+
+        assertTrue("<h1>Mes livraisons</h1>" in own)
+        assertEquals(listOf(listOf("→ P4", "42 000")), rows(own))
+        assertTrue("""class="convoy-form"""" in own)
+        assertTrue("""name="pseudo"""" !in own)
+        assertTrue("<h1>Livraisons de P1</h1>" in other)
+        assertEquals(listOf(listOf("→ P3", "78 000"), listOf("→ P4", "12 000")), rows(other))
+        assertTrue("""class="convoy-form"""" !in other)
+        assertTrue("Supprimer" !in other)
+        assertEquals(HttpStatusCode.Forbidden, forbidden.status)
+        assertTrue(query("SELECT id FROM convoys") { it.getLong(0) }.isEmpty())
     }
 }

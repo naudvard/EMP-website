@@ -25,6 +25,7 @@ class ComputeWagesTest {
         post(Alliances.Tag.Wages(Alliances.Tag(tag = tag), distribution))
 
     private suspend fun AppTestScope.saveLevel(pseudo: String, kind: String, level: Int) {
+        signIn(pseudo)
         client.submitForm(
             "/update-levels",
             parameters {

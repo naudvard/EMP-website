@@ -17,7 +17,7 @@ Kotlin/Native only, with a single target picked from the host (`mingwX64` on Win
 
 The first build downloads the SQLite amalgamation from sqlite.org (checksum-verified) and compiles it into the binary. There is no linter configured beyond `kotlin.code.style=official`.
 
-Run the binary directly; config comes from `application.yaml` with env overrides: `PORT` (3000), `HOST`, `DATABASE_PATH` (`./data/app.sqlite`), `FOURMIZZZ_BASE_URL`, `FOURMIZZZ_TIMEOUT_MS`, `ALLIANCE_TAG` (EMP). `.claude/launch.json` has preview configs (`emp-windows`) that point `DATABASE_PATH` at a scratch file — don't run against `data/app.sqlite`, it holds real data.
+Run the binary directly; config comes from `application.yaml` with env overrides: `PORT` (3000), `HOST`, `DATABASE_PATH` (`./data/app.sqlite`), `FOURMIZZZ_BASE_URL`, `FOURMIZZZ_TIMEOUT_MS`, `ALLIANCE_TAG` (EMP), `API_TOKEN` (bearer token for external API calls; empty = only a chief's session), `PUBLIC_URL` (base of the access links; empty = the request's). `emp chief-link <pseudo>` makes a member of the latest synced export a chief and prints their access link: the bootstrap for the first chief. `.claude/launch.json` has preview configs (`emp-windows`) that point `DATABASE_PATH` at a scratch file — don't run against `data/app.sqlite`, it holds real data.
 
 ## Build traps
 
@@ -37,6 +37,7 @@ Request flow: `Routing.kt` resolves use cases from Ktor DI and passes them as pa
 - `service/WageCalculation.kt`: the pure wage maths (field production, colony → master share rounded once, laying needs, debt settlement). Heavily tested in `WageCalculationTest`.
 - `config/`: `AppConfig` (deserialised from the `app` section), serialization, monitoring, StatusPages (maps domain exceptions to JSON errors — note it would also replace HTML 404 bodies, so web pages render "not found" themselves with 200).
 - `Clock` is injected everywhere time matters; never call `Clock.System` directly.
+- Identity (`config/Identity.kt`): a member opens their personal link `/access/{token}` once per device, which sets a one-year `HttpOnly; Secure; SameSite=Lax` session cookie renewed at each visit. Tokens and session ids are only stored hashed. Pages live under `memberAccess { }` (no valid session → redirect to `/access`, player left the alliance → `/access?notice=LEFT`); controllers read `call.viewer` and enforce rights with `call.requireChief()` / `call.requireEdit(playerId)` (403). The API lives under `apiAccess { }`: `Authorization: Bearer $API_TOKEN` or a chief's session. Posts whose `Origin` is another host are refused.
 
 ### Database
 
@@ -44,4 +45,4 @@ SQLDelight with `deriveSchemaFromMigrations = true`: the schema is the sum of th
 
 ### Tests
 
-`src/nativeTest`: mostly end-to-end through `appTest { ... }` (`TestHelpers.kt`), which boots the full module on a temporary SQLite file, fakes the Fourmizzz export API (`FakeFourmizzz`: `fourmizzz.players(version, …)`, `failing`, `rejectedVersions`) and injects a `TestClock` fixed at `NOW`. Helpers: `sync(resource)`, `post(resource)`, `execute(sql)`, `query(sql)`, `members()`, `latestComputation()`. Page tests assert on the rendered HTML with regexes; test names are backtick sentences.
+`src/nativeTest`: mostly end-to-end through `appTest { ... }` (`TestHelpers.kt`), which boots the full module on a temporary SQLite file, fakes the Fourmizzz export API (`FakeFourmizzz`: `fourmizzz.players(version, …)`, `failing`, `rejectedVersions`) and injects a `TestClock` fixed at `NOW`. The test client sends the API token and, after `signIn(pseudo, chief = true)` (the member must be synced), the session cookie. Helpers: `signIn`, `syncAndSignIn()`, `signOut()`, `sync(resource)`, `post(resource)`, `execute(sql)`, `query(sql)`, `members()`, `latestComputation()`. Page tests assert on the rendered HTML with regexes; test names are backtick sentences.

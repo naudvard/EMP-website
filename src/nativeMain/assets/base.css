@@ -120,3 +120,26 @@ span.wages-picker__step { color: var(--text-disabled); }
 .method__step { display: flex; flex-direction: column; gap: 6px; }
 .method__title { display: flex; align-items: center; gap: var(--space-2); font-weight: 600; }
 .method__total { font-weight: 700; }
+
+/* Access */
+.access { box-sizing: border-box; width: 100%; max-width: 34rem; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.access__intro { display: flex; flex-direction: column; gap: var(--space-2); }
+.access__lead { font-size: 16px; }
+.access__steps { list-style: none; gap: 14px; }
+.access__step { display: flex; gap: var(--space-3); }
+.access__code { gap: var(--space-2); }
+.access__code label { font-weight: 600; }
+.access__hint, .access__chiefs { font-size: 14px; line-height: 1.5; }
+.access__code-row { display: flex; gap: var(--space-2); }
+.access__code-field { flex: 1; min-width: 0; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; }
+.access__code-field::placeholder { letter-spacing: normal; text-transform: none; }
+.access__chiefs strong { color: var(--text-primary); font-weight: 600; }
+.device-code { align-items: center; gap: var(--space-2); text-align: center; }
+.device-code__value { font-family: var(--font-mono); font-size: 28px; font-weight: 600; letter-spacing: .2em; }
+.access-links__header { display: flex; align-items: center; gap: var(--space-3); }
+.access-links { gap: 0; padding-block: var(--space-1); }
+.access-links__row { flex-wrap: wrap; }
+.access-links__row:first-child { border-top: 0; }
+.access-links__row .emp-row__title { display: flex; align-items: center; gap: var(--space-2); }
+.access-links__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.access-links__replace form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding-top: var(--space-2); }

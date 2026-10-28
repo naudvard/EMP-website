@@ -13,7 +13,8 @@ import kotlin.test.assertTrue
 
 class HomePageTest {
     @Test
-    fun `links to the pages when nothing is synced yet`() = appTest {
+    fun `links to the pages before any computation`() = appTest {
+        syncAndSignIn()
         val res = client.get(Home())
 
         assertEquals(HttpStatusCode.OK, res.status)
@@ -23,7 +24,6 @@ class HomePageTest {
         assertTrue("""<a href="/update-levels" class="emp-tab">Niveaux</a>""" in page)
         assertTrue("""<a href="/debts" class="emp-tab">Dettes</a>""" in page)
         assertTrue("Aucun calcul de salaires pour l'instant." in page)
-        assertTrue("Aucun membre synchronisé" in page)
     }
 
     @Test
@@ -31,6 +31,7 @@ class HomePageTest {
         fourmizzz.players("202610201200", listOf(fourmi.copy(id = 1, pseudo = "P1", field = 4_000), fourmi.copy(id = 2, pseudo = "P2", field = 500)))
         sync(Exports.Players.Sync(version = "202610201200"))
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "minimal"))
+        signIn("P1", chief = false)
 
         val page = client.get(Home()).bodyAsText()
 

@@ -1,12 +1,14 @@
 package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.AllianceMember
+import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.domain.model.WageSettlement
 import fr.nathanaudvard.emp.web.forms.DebtsForm
 import kotlinx.html.ButtonType
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
 import kotlinx.html.InputType
+import kotlinx.html.TR
 import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.form
@@ -22,8 +24,10 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 
+// Everyone sees the debts; only the chiefs choose who delivers, a member reads their own choice
 fun HTML.debtsPage(
     action: String,
+    viewer: Viewer,
     members: List<AllianceMember>,
     settlements: Map<Long, WageSettlement>,
     debts: Map<Long, Long>,
@@ -31,6 +35,31 @@ fun HTML.debtsPage(
     saved: Boolean = false,
 ) = layout("Dettes", Tab.DEBTS) {
     h1 { +"Dettes" }
+    if (!viewer.chief) {
+        p("meta") { +"Les chefs choisissent pour chaque joueur s'il livre ce qu'il doit ou s'il le cumule en dette." }
+        settlements[viewer.playerId]?.let {
+            p("notice") { +"Quand ton solde est négatif, tu ${if (it == WageSettlement.DELIVER) "livres" else "cumules la dette"}." }
+        }
+        table {
+            thead {
+                tr {
+                    th { +"Rang" }
+                    th { +"Joueur" }
+                    th(classes = "amount") { +"Dette" }
+                }
+            }
+            tbody {
+                members.forEach { member ->
+                    tr {
+                        rank(member)
+                        td { +member.pseudo }
+                        debt(debts[member.id])
+                    }
+                }
+            }
+        }
+        return@layout
+    }
     p("meta") { +"Pour chaque joueur, choisis s'il livre ce qu'il doit ou s'il le cumule en dette." }
     if (saved) {
         p("notice success") { +"Choix enregistrés." }
@@ -46,7 +75,10 @@ fun HTML.debtsPage(
                 tr {
                     th { +"Rang" }
                     th { +"Joueur" }
-                    th { +"Salaire dû" }
+                    th {
+                        +"Salaire dû "
+                        empBadge(BadgeVariant.LEADER, "Chef")
+                    }
                     th(classes = "amount") { +"Dette" }
                 }
             }
@@ -54,10 +86,7 @@ fun HTML.debtsPage(
                 members.forEach { member ->
                     val current = settlements[member.id] ?: WageSettlement.DELIVER
                     tr {
-                        td {
-                            val rank = member.chainRank
-                            if (rank == null) span("rank none") { +"—" } else span("rank") { +rank }
-                        }
+                        rank(member)
                         td { +member.pseudo }
                         td {
                             div("choice") {
@@ -74,8 +103,7 @@ fun HTML.debtsPage(
                                 }
                             }
                         }
-                        val debt = debts[member.id] ?: 0
-                        td("amount") { +(if (debt > 0) formatAmount(debt) else "—") }
+                        debt(debts[member.id])
                     }
                 }
             }
@@ -83,6 +111,13 @@ fun HTML.debtsPage(
         button(type = ButtonType.submit) { +"Enregistrer" }
     }
 }
+
+private fun TR.rank(member: AllianceMember) = td {
+    val rank = member.chainRank
+    if (rank == null) span("rank none") { +"—" } else span("rank") { +rank }
+}
+
+private fun TR.debt(debt: Long?) = td("amount") { +(if (debt != null && debt > 0) formatAmount(debt) else "—") }
 
 val WageSettlement.label
     get() = when (this) {

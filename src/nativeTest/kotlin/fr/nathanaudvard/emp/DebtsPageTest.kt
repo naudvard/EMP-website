@@ -21,6 +21,7 @@ class DebtsPageTest {
             listOf(fourmi, fourmi.copy(id = 124, pseudo = "abeille"), fourmi.copy(id = 125, pseudo = "Intrus", alliance = "LRM")),
         )
         sync(Exports.Players.Sync(version = "202610201200"))
+        signIn("Fourmi")
     }
 
     private suspend fun AppTestScope.submit(vararg choices: Pair<String, String>): HttpResponse =
@@ -124,6 +125,7 @@ class DebtsPageTest {
             listOf(fourmi.copy(id = 1, pseudo = "Stonotwo", grade = "G1 - Le roc"), fourmi.copy(id = 2, pseudo = "Verso", grade = "Chef")),
         )
         sync(Exports.Players.Sync(version = "202610201200"))
+        signIn("Verso")
 
         val page = client.get(Debts()).bodyAsText()
 
@@ -134,10 +136,27 @@ class DebtsPageTest {
     }
 
     @Test
-    fun `says when no member is synced`() = appTest {
+    fun `a member reads the debts and their own choice only`() = appTest {
+        syncMembers()
+        submit("player-124" to "ACCUMULATE_DEBT")
+        signIn("abeille", chief = false)
+
         val page = client.get(Debts()).bodyAsText()
 
-        assertTrue("Aucun membre connu" in page)
+        assertTrue("Quand ton solde est négatif, tu cumules la dette." in page)
         assertTrue("<form" !in page)
+        assertTrue("radio" !in page)
+        assertTrue("Fourmi" in page)
+    }
+
+    @Test
+    fun `a member cannot save the choices`() = appTest {
+        syncMembers()
+        signIn("abeille", chief = false)
+
+        val res = submit("player-123" to "ACCUMULATE_DEBT", "player-124" to "ACCUMULATE_DEBT")
+
+        assertEquals(HttpStatusCode.Forbidden, res.status)
+        assertEquals(listOf(123L to "DELIVER", 124L to "DELIVER"), storedSettlements())
     }
 }

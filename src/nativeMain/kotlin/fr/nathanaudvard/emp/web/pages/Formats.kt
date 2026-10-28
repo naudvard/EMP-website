@@ -34,6 +34,9 @@ fun formatDateTime(instant: Instant, weekday: Boolean = true, separator: String 
     if (weekday) "${weekdays[dayOfWeek.ordinal]} $date" else date
 }
 
+// The day only: "20 oct."
+fun formatDay(instant: Instant): String = with(instant.local()) { "$day$NBSP${months[month.ordinal]}" }
+
 private fun daysBetween(instant: Instant, now: Instant): Int = instant.local().date.daysUntil(now.local().date)
 
 // When something was done, for what is left to do: "à l'instant", "il y a 20 min", "il y a 3 h", "hier", "il y a 3 j"

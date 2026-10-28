@@ -1,20 +1,25 @@
 package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.WageComputation
+import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.Debts
 import fr.nathanaudvard.emp.web.resources.Levels
 import fr.nathanaudvard.emp.web.resources.Wages
+import kotlinx.html.ButtonType
 import kotlinx.html.FlowContent
+import kotlinx.html.FormMethod
 import kotlinx.html.HTML
 import kotlinx.html.a
+import kotlinx.html.button
 import kotlinx.html.div
+import kotlinx.html.form
 import kotlinx.html.h1
 import kotlinx.html.h2
 import kotlinx.html.p
 import kotlinx.html.section
 import kotlinx.html.span
 
-fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: Int) = layout("Accueil", Tab.HOME) {
+fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: Int, chief: Boolean) = layout("Accueil", Tab.HOME) {
     h1 { +"Alliance $allianceTag" }
     p("meta") { +"Salaires et niveaux des membres de l'alliance." }
     div("cards") {
@@ -37,6 +42,15 @@ fun HTML.homePage(allianceTag: String, latest: WageComputation?, memberCount: In
         card(href(Debts()), "Dettes") {
             p { +"Choisis pour chaque joueur s'il livre ce qu'il doit ou s'il cumule de la dette." }
         }
+        if (chief) {
+            card(href(Access.Links()), "Accès des membres") {
+                p { +"Copie le message privé qui donne à chaque membre son lien personnel." }
+                p { empBadge(BadgeVariant.LEADER, "Chef") }
+            }
+        }
+    }
+    form(action = href(Access.Device()), method = FormMethod.post, classes = "other-device") {
+        button(type = ButtonType.submit) { +"Connecter un autre appareil" }
     }
 }
 

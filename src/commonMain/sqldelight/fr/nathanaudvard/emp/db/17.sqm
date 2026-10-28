@@ -1,0 +1,13 @@
+-- Code a signed-in player shows to open a session on another device, valid once and for a few minutes
+CREATE TABLE device_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    code TEXT NOT NULL,
+    player_id INTEGER NOT NULL,
+    -- The link of the session that showed it, which the new session comes from too
+    access_link_id INTEGER NOT NULL REFERENCES access_links(id),
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+);
+
+CREATE INDEX device_codes_code_idx ON device_codes (code);

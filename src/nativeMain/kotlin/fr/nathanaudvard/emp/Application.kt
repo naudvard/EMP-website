@@ -11,6 +11,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.resources.Resources
 
 fun main(args: Array<String>) {
+    if (args.firstOrNull() == CHIEF_LINK_COMMAND) return printChiefLink(args.drop(1))
     // Kotlin/Native cannot load modules by name from application.yaml: they are registered here
     val commandLine = CommandLineConfig(args)
     embeddedServer(

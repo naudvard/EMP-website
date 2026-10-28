@@ -42,7 +42,7 @@ class WagesPageTest {
 
     // Pseudo, whether they accumulate, balance and debt of each row of the balances
     private fun balanceRows(page: String) =
-        Regex("""<tr(?: class="[^"]*")? data-pseudo="[^"]*"><td>([^<]*)(<span class="emp-badge badge-accumulates">cumule</span>)?</td>(?:<td class="number">[^<]*</td>)*<td class="number[^"]*">([^<]*)</td><td class="number[^"]*">(?:<span>)?([^<]*)""")
+        Regex("""<tr(?: class="[^"]*")? data-pseudo="[^"]*"><td>([^<]*?)(?: \(toi\))?(<span class="emp-badge badge-accumulates">cumule</span>)?</td>(?:<td class="number">[^<]*</td>)*<td class="number[^"]*">([^<]*)</td><td class="number[^"]*">(?:<span>)?([^<]*)""")
             .findAll(page).map { listOf(it.groupValues[1], if (it.groupValues[2].isEmpty()) "" else "cumule", it.groupValues[3], it.groupValues[4]) }
             .toList()
 
@@ -61,6 +61,7 @@ class WagesPageTest {
         clock.now = NOW
         fourmizzz.players("202610201200", players)
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "minimal"))
+        signIn("P3")
     }
 
     private suspend fun AppTestScope.recordConvoys(giver: String, vararg convoys: Pair<String, String>) {
@@ -74,6 +75,7 @@ class WagesPageTest {
 
     @Test
     fun `says when no wages have been computed yet`() = appTest {
+        syncAndSignIn()
         val res = client.get(Wages())
 
         assertEquals(HttpStatusCode.OK, res.status)
@@ -137,6 +139,7 @@ class WagesPageTest {
         val players = listOf(fourmi.copy(id = 1, pseudo = "P1", field = 300_000), fourmi.copy(id = 2, pseudo = "P2", field = 1_000))
         fourmizzz.players("202610201200", players)
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP")))
+        signIn("P1")
 
         val page = page()
 
@@ -150,6 +153,7 @@ class WagesPageTest {
             fourmizzz.players("20261020${12 - hoursAgo}00", listOf(fourmi.copy(id = 1, pseudo = "P1"), fourmi.copy(id = 2, pseudo = "P2")))
             post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "proportional"))
         }
+        signIn("P1")
 
         val latest = page()
         assertTrue("""<a href="/wages?id=2" class="wages-picker__step" aria-label="Calcul précédent">""" in latest)
@@ -179,6 +183,7 @@ class WagesPageTest {
         clock.now = NOW
         fourmizzz.players("202610201200", listOf(fourmi.copy(id = 1, pseudo = "P1")))
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"), distribution = "minimal"))
+        signIn("P1")
 
         // Computed on 20/10 at 14:30 game time: the latest one of that day or a later one
         for (date in listOf("2026-10-20", "2026-10-25")) {
@@ -195,6 +200,7 @@ class WagesPageTest {
     fun `says when the computation does not exist`() = appTest {
         fourmizzz.players("202610201200", listOf(fourmi.copy(id = 1, pseudo = "P1")))
         post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP")))
+        signIn("P1")
 
         val res = client.get(Wages(id = 42))
 
@@ -206,6 +212,7 @@ class WagesPageTest {
 
     @Test
     fun `the banner links to the pages`() = appTest {
+        syncAndSignIn()
         val page = page()
 
         assertTrue(Regex("""<header class="emp-header"><div class="emp-header__inner"><a href="/" class="emp-logo"><svg[^>]*>.*?</svg>EMP</a>""") in page)
@@ -257,12 +264,13 @@ class WagesPageTest {
     @Test
     fun `members never receive the full detail`() = appTest {
         twoComputations()
+        signIn("P1", chief = false)
 
         val page = page(Wages(detail = 1))
 
         assertFalse("TdC moyen" in page)
         assertFalse("Détail complet" in page)
-        assertFalse("emp-table__you" in page)
+        assertTrue("""<tr class="emp-table__you" data-pseudo="p1"><td>P1 (toi)</td>""" in page)
     }
 
     @Test

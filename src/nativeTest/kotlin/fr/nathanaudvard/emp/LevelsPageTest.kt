@@ -23,6 +23,7 @@ class LevelsPageTest {
         )
         sync(Exports.Players.Sync(version = "202610201100"))
         sync(Exports.Players.Sync(version = "202610201200"))
+        signIn("Fourmi")
     }
 
     private suspend fun AppTestScope.submit(pseudo: String, kind: String, level: String): HttpResponse =
@@ -128,5 +129,21 @@ class LevelsPageTest {
 
         assertTrue("""value="Fourmi"""" in client.get(Levels(saved = "Fourmi")).bodyAsText())
         assertTrue("""value="Intrus"""" !in client.get(Levels(saved = "Intrus")).bodyAsText())
+    }
+
+    @Test
+    fun `a member saves their own levels only`() = appTest {
+        syncMembers()
+        signIn("abeille", chief = false)
+
+        val page = client.get(Levels()).bodyAsText()
+        val own = submit("abeille", "INCUBATOR", "5")
+        val other = submit("Fourmi", "INCUBATOR", "5")
+
+        assertTrue(Regex("""<input type="text" name="pseudo" id="pseudo" value="abeille" required="required" readonly="readonly">""").containsMatchIn(page))
+        assertTrue("<datalist" !in page)
+        assertEquals(HttpStatusCode.Found, own.status)
+        assertEquals(HttpStatusCode.Forbidden, other.status)
+        assertEquals(listOf(listOf(124L, 5L, null, null)), storedLevels())
     }
 }

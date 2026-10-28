@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.api.dto.SyncRequest
+import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.WageComputation
@@ -15,15 +16,22 @@ import fr.nathanaudvard.emp.fourmizzz.DiplomacyRes
 import fr.nathanaudvard.emp.fourmizzz.ExportVersionsRes
 import fr.nathanaudvard.emp.fourmizzz.PactRes
 import fr.nathanaudvard.emp.fourmizzz.PlayerRes
+import fr.nathanaudvard.emp.config.SESSION_COOKIE
+import fr.nathanaudvard.emp.service.AccessService
+import fr.nathanaudvard.emp.web.resources.Access
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.plugins.resources.Resources
+import io.ktor.client.plugins.resources.get
 import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.setCookie
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -118,8 +126,50 @@ class TestClock(var now: Instant = NOW) : Clock {
     override fun now() = now
 }
 
-class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: FakeFourmizzz, val clock: TestClock) {
+// What the test client sends with each request: the API token, and the session cookie once signed in
+class TestIdentity {
+    var apiToken: String? = API_TOKEN
+    var session: String? = null
+
+    val plugin = createClientPlugin("TestIdentity") {
+        onRequest { request, _ ->
+            apiToken?.let { request.headers.append(HttpHeaders.Authorization, "Bearer $it") }
+            session?.let { request.headers.append(HttpHeaders.Cookie, "$SESSION_COOKIE=$it") }
+        }
+    }
+}
+
+class AppTestScope(
+    private val builder: ApplicationTestBuilder,
+    val fourmizzz: FakeFourmizzz,
+    val clock: TestClock,
+    val identity: TestIdentity,
+) {
     val client: HttpClient get() = builder.client
+
+    val application get() = builder.application
+
+    // Opens the member's link as a browser would, the member being a chief or not. Their alliance must be synced
+    suspend fun signIn(pseudo: String, chief: Boolean = true) {
+        val member = members().single { it.pseudo == pseudo }
+        val access: AccessService = builder.application.dependencies.resolve()
+        access.setChief(member.id, chief)
+        val token = access.issueLink(member.id, createdBy = null, clock.now)
+        val res = client.config { followRedirects = false }.get(Access.Link(token = token))
+        check(res.status == HttpStatusCode.Found) { "The link of $pseudo opened no session: ${res.status}" }
+        identity.session = res.setCookie().single { it.name == SESSION_COOKIE }.value
+    }
+
+    // A single member, signed in as a chief, for the pages that need nothing else
+    suspend fun syncAndSignIn() {
+        fourmizzz.players("202610201200", listOf(fourmi))
+        sync(Exports.Players.Sync(version = "202610201200"))
+        signIn(fourmi.pseudo)
+    }
+
+    fun signOut() {
+        identity.session = null
+    }
 
     suspend inline fun <reified T : Any> post(resource: T): HttpResponse = client.post(resource)
 
@@ -159,6 +209,8 @@ class AppTestScope(private val builder: ApplicationTestBuilder, val fourmizzz: F
 
 private const val FOURMIZZZ_URL = "http://fourmizzz.test"
 
+const val API_TOKEN = "test-api-token"
+
 val NOW: Instant = Instant.parse("2026-10-20T12:30:00Z")
 
 fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.() -> Unit) {
@@ -167,6 +219,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
         testApplication {
             val fourmizzz = FakeFourmizzz()
             val clock = TestClock()
+            val identity = TestIdentity()
 
             environment {
                 config = MapApplicationConfig(
@@ -174,6 +227,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
                     "app.fourmizzz.baseUrl" to fourmizzzUrl,
                     "app.fourmizzz.timeoutMs" to "1000",
                     "app.alliance.tag" to "EMP",
+                    "app.api.token" to API_TOKEN,
                 )
             }
             externalServices {
@@ -189,9 +243,10 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
             client = createClient {
                 install(Resources)
                 install(ClientContentNegotiation) { json() }
+                install(identity.plugin)
             }
 
-            AppTestScope(this, fourmizzz, clock).block()
+            AppTestScope(this, fourmizzz, clock, identity).block()
         }
     } finally {
         // A failed test leaves the database open: deleting it must not hide the failure

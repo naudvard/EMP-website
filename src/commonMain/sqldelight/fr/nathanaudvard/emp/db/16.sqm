@@ -1,0 +1,31 @@
+-- Personal link a chief sends to a player, opened once per device. Only a hash of its token is stored
+CREATE TABLE access_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    player_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    -- Null when created from the command line
+    created_by INTEGER,
+    -- When its message was last copied, its token being renewed then
+    sent_at TEXT,
+    revoked_at TEXT
+);
+
+CREATE INDEX access_links_player_id_idx ON access_links (player_id);
+
+-- A browser recognised by its cookie. Only a hash of the session id is stored
+CREATE TABLE sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    id_hash TEXT NOT NULL UNIQUE,
+    player_id INTEGER NOT NULL,
+    -- The link it comes from, directly or through a device code
+    access_link_id INTEGER NOT NULL REFERENCES access_links(id),
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE INDEX sessions_player_id_idx ON sessions (player_id);
+
+ALTER TABLE players ADD COLUMN is_chief INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN last_seen_at TEXT;

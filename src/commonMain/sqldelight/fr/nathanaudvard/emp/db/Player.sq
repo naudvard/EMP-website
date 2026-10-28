@@ -23,3 +23,12 @@ ON CONFLICT (id) DO UPDATE SET wage_settlement = excluded.wage_settlement;
 upsertDebt:
 INSERT INTO players (id, debt) VALUES (?, ?)
 ON CONFLICT (id) DO UPDATE SET debt = excluded.debt;
+
+upsertChief:
+INSERT INTO players (id, is_chief) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET is_chief = excluded.is_chief;
+
+-- The latest visit, from any device
+upsertLastSeen:
+INSERT INTO players (id, last_seen_at) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET last_seen_at = excluded.last_seen_at;

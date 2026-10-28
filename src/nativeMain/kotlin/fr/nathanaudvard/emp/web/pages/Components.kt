@@ -15,6 +15,7 @@ import kotlinx.html.details
 import kotlinx.html.div
 import kotlinx.html.id
 import kotlinx.html.input
+import kotlinx.html.script
 import kotlinx.html.section
 import kotlinx.html.span
 import kotlinx.html.summary
@@ -32,8 +33,8 @@ enum class CardVariant(internal val cssClass: String?) {
     WARNING("emp-card--warning"),
 }
 
-fun FlowContent.empCard(variant: CardVariant = CardVariant.DEFAULT, block: SECTION.() -> Unit) =
-    section(classes("emp-card", variant.cssClass), block)
+fun FlowContent.empCard(variant: CardVariant = CardVariant.DEFAULT, cssClass: String? = null, block: SECTION.() -> Unit) =
+    section(classes("emp-card", variant.cssClass, cssClass), block)
 
 enum class BtnVariant(internal val cssClass: String) {
     PRIMARY("emp-btn--primary"),
@@ -150,6 +151,53 @@ fun FlowContent.empDisclosure(label: String, card: Boolean = false, id: String? 
         summary(classes("emp-disclosure", "emp-disclosure--card".takeIf { card })) { +label }
         block()
     }
+
+// Copies the value of the element of the given id. Without a target, the button submits its form, posted for the text
+// to copy: the server answers it as plain text to the script, as a page showing it to copy by hand otherwise.
+// The pages using it add copyScript()
+fun FlowOrPhrasingContent.empCopyButton(
+    label: String,
+    variant: BtnVariant,
+    size: BtnSize = BtnSize.DEFAULT,
+    target: String? = null,
+) = empBtn(variant, size, if (target == null) ButtonType.submit else ButtonType.button) {
+    attributes["data-copy"] = target.orEmpty()
+    +label
+}
+
+fun FlowContent.copyScript() = script { unsafe { +COPY_SCRIPT } }
+
+// Without the clipboard, a target is selected to be copied by hand, and a form is posted for real
+private const val COPY_SCRIPT = """
+(function () {
+    function copied(button) {
+        var label = button.textContent;
+        button.textContent = "✓ Copié";
+        setTimeout(function () { button.textContent = label; }, 2000);
+    }
+    document.addEventListener("click", function (event) {
+        var button = event.target.closest("button[data-copy]");
+        if (!button || button.type === "submit") return;
+        var source = document.getElementById(button.dataset.copy);
+        var text = "value" in source ? source.value : source.textContent;
+        var written = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject();
+        written.then(function () { copied(button); }, function () { source.focus(); if (source.select) source.select(); });
+    });
+    document.addEventListener("submit", function (event) {
+        var button = event.submitter;
+        if (!button || !button.hasAttribute("data-copy") || !navigator.clipboard) return;
+        event.preventDefault();
+        var form = event.target;
+        var text = fetch(form.action, { method: "POST", headers: { Accept: "text/plain" } })
+            .then(function (res) { return res.ok ? res.text() : Promise.reject(res.status); });
+        // Safari only writes during the click: the text is handed over as a promise
+        var written = window.ClipboardItem
+            ? navigator.clipboard.write([new ClipboardItem({ "text/plain": text.then(function (t) { return new Blob([t], { type: "text/plain" }); }) })])
+            : text.then(function (t) { return navigator.clipboard.writeText(t); });
+        written.then(function () { copied(button); }, function () { form.submit(); });
+    });
+})();
+"""
 
 private const val MINUS_ICON =
     """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>"""

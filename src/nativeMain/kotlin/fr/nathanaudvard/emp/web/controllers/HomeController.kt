@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp.web.controllers
 
+import fr.nathanaudvard.emp.config.viewer
 import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
 import fr.nathanaudvard.emp.web.pages.homePage
@@ -16,6 +17,6 @@ fun Route.homeController(
     get<Home> {
         val latest = getWageHistory(allianceTag).selected
         val members = getMembers(allianceTag)
-        call.respondHtml { homePage(allianceTag, latest, members.size) }
+        call.respondHtml { homePage(allianceTag, latest, members.size, call.viewer.chief) }
     }
 }

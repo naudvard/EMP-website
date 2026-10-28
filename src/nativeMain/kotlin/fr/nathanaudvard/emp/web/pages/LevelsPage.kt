@@ -2,6 +2,7 @@ package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
+import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.web.forms.LevelsForm
 import kotlinx.html.ButtonType
 import kotlinx.html.DIV
@@ -21,8 +22,10 @@ import kotlinx.html.option
 import kotlinx.html.p
 import kotlinx.html.select
 
+// A member saves their own levels, a chief those of any member
 fun HTML.levelsPage(
     action: String,
+    viewer: Viewer,
     members: List<AllianceMember>,
     values: LevelsForm,
     errors: Map<String, String> = emptyMap(),
@@ -37,18 +40,24 @@ fun HTML.levelsPage(
         p("notice error") { +"Aucun membre connu : l'export des joueurs n'a pas encore été synchronisé." }
     }
     form(action = action, method = FormMethod.post, classes = "card-form") {
-        field(LevelsForm.PSEUDO, "Pseudo", errors) {
+        field(LevelsForm.PSEUDO, "Pseudo", errors, chief = viewer.chief) {
             input(InputType.text, name = LevelsForm.PSEUDO) {
                 id = LevelsForm.PSEUDO
                 value = values.pseudo
-                placeholder = "Rechercher un pseudo"
                 required = true
-                attributes["list"] = "members"
-                attributes["autocomplete"] = "off"
+                if (viewer.chief) {
+                    placeholder = "Rechercher un pseudo"
+                    attributes["list"] = "members"
+                    attributes["autocomplete"] = "off"
+                } else {
+                    readonly = true
+                }
             }
-            dataList {
-                id = "members"
-                members.forEach { option { value = it.pseudo } }
+            if (viewer.chief) {
+                dataList {
+                    id = "members"
+                    members.forEach { option { value = it.pseudo } }
+                }
             }
         }
         // Side by side on wide screens: the element and its level go together
@@ -94,12 +103,17 @@ private fun FlowContent.field(
     text: String,
     errors: Map<String, String>,
     hint: String? = null,
+    chief: Boolean = false,
     control: DIV.() -> Unit
 ) {
     div("field") {
         label {
             htmlFor = name
             +text
+            if (chief) {
+                +" "
+                empBadge(BadgeVariant.LEADER, "Chef")
+            }
         }
         control()
         hint?.let { p("hint") { +it } }

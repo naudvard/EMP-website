@@ -5,7 +5,13 @@ import fr.nathanaudvard.emp.domain.exception.AllianceNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportNotFoundException
 import fr.nathanaudvard.emp.domain.exception.ExportUnavailableException
 import fr.nathanaudvard.emp.domain.exception.InvalidVersionException
+import fr.nathanaudvard.emp.domain.exception.ForbiddenException
 import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
+import fr.nathanaudvard.emp.domain.exception.MemberLeftException
+import fr.nathanaudvard.emp.domain.exception.SignInRequiredException
+import fr.nathanaudvard.emp.domain.exception.UnauthorizedException
+import fr.nathanaudvard.emp.web.resources.Access
+import fr.nathanaudvard.emp.web.resources.AccessNotice
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -14,14 +20,23 @@ import io.ktor.server.engine.defaultExceptionStatusCode
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.uri
+import io.ktor.server.resources.href
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 
 fun Application.configureStatusPages() {
     install(StatusPages) {
         // A single handler: on native, StatusPages picks an arbitrary handler when no exact exception class matches
         exception<Throwable> { call, cause ->
+            // Pages without a member's session go to the access screen
+            when (cause) {
+                is SignInRequiredException -> return@exception call.respondRedirect(call.application.href(Access()))
+                is MemberLeftException -> return@exception call.respondRedirect(call.application.href(Access(AccessNotice.LEFT)))
+            }
             val status = when (cause) {
                 is InvalidVersionException -> HttpStatusCode.BadRequest
+                is UnauthorizedException -> HttpStatusCode.Unauthorized
+                is ForbiddenException -> HttpStatusCode.Forbidden
                 is ExportNotFoundException, is AllianceNotFoundException -> HttpStatusCode.NotFound
                 is ExportUnavailableException -> HttpStatusCode.BadGateway
                 is LevelsTooHighException -> HttpStatusCode.UnprocessableEntity

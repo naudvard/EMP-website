@@ -45,8 +45,14 @@ private val Tab.href
         Tab.DEBTS -> href(Debts())
     }
 
-// Pages not migrated to the design system yet keep their former styles
-fun HTML.layout(title: String, tab: Tab?, legacyStyle: Boolean = true, content: MAIN.() -> Unit) {
+// Pages not migrated to the design system yet keep their former styles. Without navigation, the banner has no tabs
+fun HTML.layout(
+    title: String,
+    tab: Tab?,
+    legacyStyle: Boolean = true,
+    navigation: Boolean = true,
+    content: MAIN.() -> Unit,
+) {
     lang = "fr"
     head {
         meta(charset = "utf-8")
@@ -67,12 +73,14 @@ fun HTML.layout(title: String, tab: Tab?, legacyStyle: Boolean = true, content: 
                     unsafe { +ANT_ICON }
                     +"EMP"
                 }
-                nav("emp-nav") {
-                    attributes["aria-label"] = "Navigation principale"
-                    Tab.entries.forEach {
-                        a(it.href, classes = "emp-tab") {
-                            if (it == tab) attributes["aria-current"] = "page"
-                            +it.label
+                if (navigation) {
+                    nav("emp-nav") {
+                        attributes["aria-label"] = "Navigation principale"
+                        Tab.entries.forEach {
+                            a(it.href, classes = "emp-tab") {
+                                if (it == tab) attributes["aria-current"] = "page"
+                                +it.label
+                            }
                         }
                     }
                 }
@@ -215,6 +223,7 @@ tbody tr:hover td { background: var(--bg); }
 .card h2 a:focus-visible { outline: none; }
 .card:has(a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .card p { margin: 0; }
+.other-device { margin-top: 1.5rem; }
 .card-action { margin-top: auto; padding-top: .75rem; color: var(--accent); font-weight: 600; }
 
 @media (max-width: 30rem) {
