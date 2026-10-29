@@ -45,5 +45,3 @@ data class StoredDeviceCode(
     val usedAt: Instant?,
 )
 
-// The latest visit and when the link's message was last copied, null when never
-data class MemberAccess(val member: AllianceMember, val chief: Boolean, val sentAt: Instant?, val lastSeenAt: Instant?)

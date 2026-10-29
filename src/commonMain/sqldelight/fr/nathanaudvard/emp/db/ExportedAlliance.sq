@@ -12,3 +12,9 @@ RETURNING id;
 insertPact:
 INSERT INTO exported_alliance_pacts (alliance_id, tag, name, description)
 VALUES (?, ?, ?, ?);
+
+latest:
+SELECT * FROM exported_alliances WHERE tag = ? ORDER BY version DESC LIMIT 1;
+
+pacts:
+SELECT tag, name, description FROM exported_alliance_pacts WHERE alliance_id = ? ORDER BY tag;

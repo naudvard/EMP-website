@@ -31,4 +31,5 @@ suspend fun Application.module() {
     configureStatusPages()
     configureDependencies()
     configureRouting()
+    scheduleWages()
 }

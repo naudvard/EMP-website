@@ -2,7 +2,9 @@ package fr.nathanaudvard.emp.service
 
 import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.domain.model.AllianceMember
+import fr.nathanaudvard.emp.domain.model.ConvoySource
 import fr.nathanaudvard.emp.domain.model.LayingNeed
+import fr.nathanaudvard.emp.domain.model.SavedComputation
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
 import fr.nathanaudvard.emp.domain.model.SelfProduction
 import fr.nathanaudvard.emp.domain.model.SettledWage
@@ -88,8 +90,32 @@ class WageService(private val repository: WageRepository) {
     suspend fun computation(allianceTag: String, id: Long): WageComputation? =
         repository.computation(allianceTag, id)
 
-    suspend fun saveConvoys(computationId: Long, sentAt: Instant, convoys: List<WageDelivery>) =
-        repository.saveConvoys(computationId, sentAt, convoys)
+    suspend fun saveConvoy(
+        computationId: Long,
+        convoy: WageDelivery,
+        sentAt: Instant,
+        source: ConvoySource,
+        declaredBy: Long,
+        arrivesAt: Instant? = null,
+        returnAt: Instant? = null,
+    ): Long = repository.saveConvoy(computationId, convoy, sentAt, source, arrivesAt, returnAt, declaredBy)
 
-    suspend fun deleteConvoy(id: Long, fromPlayerId: Long) = repository.deleteConvoy(id, fromPlayerId)
+    suspend fun setConvoyTimes(id: Long, arrivesAt: Instant?, returnAt: Instant?) =
+        repository.setConvoyTimes(id, arrivesAt, returnAt)
+
+    suspend fun deleteConvoys(ids: Collection<Long>, fromPlayerId: Long) = repository.deleteConvoys(ids, fromPlayerId)
+
+    suspend fun latest(allianceTag: String): SavedComputation? {
+        val latestId = repository.bounds(allianceTag).latestId ?: return null
+        return repository.computation(allianceTag, latestId)?.let { SavedComputation(latestId, it) }
+    }
+
+    // The latest computation of the alliance and the one before, whose rest can still be sent
+    suspend fun latestTwo(allianceTag: String): Pair<SavedComputation?, SavedComputation?> {
+        val latestId = repository.bounds(allianceTag).latestId ?: return null to null
+        val latest = repository.computation(allianceTag, latestId)?.let { SavedComputation(latestId, it) }
+        val previous = repository.olderId(allianceTag, latestId)
+            ?.let { id -> repository.computation(allianceTag, id)?.let { SavedComputation(id, it) } }
+        return latest to previous
+    }
 }

@@ -6,6 +6,8 @@ data class AllianceMember(
     val masterPlayerId: Long?,
     // "C", "P1", "G3"... Null when the grade does not give one
     val chainRank: String?,
+    // Hunting field in cm², from the latest players export
+    val field: Long = 0,
 )
 
 // The alliance writes the rank at the start of the grade: "G1 - Le roc", "P4 - Hypnos", "C - Styx", or alone: "P1"

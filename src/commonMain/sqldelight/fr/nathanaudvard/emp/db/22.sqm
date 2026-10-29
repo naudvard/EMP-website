@@ -1,0 +1,13 @@
+-- The daily computation of an alliance: its time (game time, HH:MM) and distribution, and who last set them.
+-- No row until a chief saves them: the defaults apply
+CREATE TABLE alliance_settings (
+    alliance_tag TEXT NOT NULL PRIMARY KEY,
+    computation_time TEXT NOT NULL,
+    -- WageDistribution name
+    distribution TEXT NOT NULL,
+    updated_at TEXT,
+    updated_by INTEGER,
+    -- The latest scheduled computation that failed (ComputationFailure name), cleared by the next one that succeeds
+    failed_at TEXT,
+    failure TEXT
+);

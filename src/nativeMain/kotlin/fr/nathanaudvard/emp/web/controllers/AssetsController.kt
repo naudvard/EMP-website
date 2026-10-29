@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp.web.controllers
 
+import fr.nathanaudvard.emp.web.assets.script
 import fr.nathanaudvard.emp.web.assets.stylesheets
 import fr.nathanaudvard.emp.web.resources.Assets
 import io.ktor.http.ContentType
@@ -13,8 +14,10 @@ import io.ktor.server.routing.Route
 
 fun Route.assetsController() {
     get<Assets> { asset ->
-        val sheet = stylesheets.find { it.name == asset.name } ?: return@get call.respond(HttpStatusCode.NotFound)
+        val (content, type) = stylesheets.find { it.name == asset.name }?.let { it.content to ContentType.Text.CSS }
+            ?: script.takeIf { it.name == asset.name }?.let { it.content to ContentType.Text.JavaScript }
+            ?: return@get call.respond(HttpStatusCode.NotFound)
         call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable")
-        call.respondText(sheet.content, ContentType.Text.CSS)
+        call.respondText(content, type)
     }
 }

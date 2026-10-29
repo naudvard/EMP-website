@@ -2,6 +2,7 @@ package fr.nathanaudvard.emp
 
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
+import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.web.pages.DIGIT_GROUP_SEPARATOR
 import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.pages.wagesPage
@@ -47,8 +48,8 @@ class WagesPageTest {
             .toList()
 
     private fun tiles(page: String) =
-        Regex("""<div class="emp-tile"><span class="caption text-secondary">([^<]*)</span><span class="wages-tile__figure">([^<]*)</span>""")
-            .findAll(page).map { it.groupValues[1] to it.groupValues[2] }.toList()
+        Regex("""<div class="emp-tile[^"]*"><span class="caption text-secondary">(.*?)</span><span class="wages-tile__figure">([^<]*)</span>""")
+            .findAll(page).map { it.groupValues[1].replace(Regex("<[^>]*>"), "") to it.groupValues[2] }.toList()
 
     // Four players, P1 and P2 sending to P3 and P4, the second computation a day after the first
     private suspend fun AppTestScope.twoComputations(before: suspend () -> Unit = {}) {
@@ -67,7 +68,7 @@ class WagesPageTest {
     private suspend fun AppTestScope.recordConvoys(giver: String, vararg convoys: Pair<String, String>) {
         for ((recipient, amount) in convoys) {
             client.submitForm(
-                "/my-deliveries?pseudo=$giver",
+                "/alliance/members/$giver/convoys",
                 parameters { append("message", "Vous allez livrer 0 nourritures et $amount materiaux à $recipient dans 1H") },
             )
         }
@@ -90,7 +91,7 @@ class WagesPageTest {
 
         assertTrue("<p class=\"wages-header__period text-secondary\">Récolte du lun. 19 oct. 14:30 au mar. 20 oct. 14:30 · 1 mesure horaire · répartition minimale</p>" in page)
         assertEquals(
-            listOf("Récolte" to "408 000", "À envoyer · 3 envois" to "132 000", "Envoyé" to "0 %", "Reste · 2 livreurs" to "132 000"),
+            listOf("Récolte de l'alliance" to "408 000", "À envoyer · 3 envois" to "132 000", "Envoyé" to "0 %", "Reste · 2 livreurs" to "132 000"),
             tiles(page),
         )
         // The largest amount left first
@@ -158,7 +159,7 @@ class WagesPageTest {
         val latest = page()
         assertTrue("""<a href="/wages?id=2" class="wages-picker__step" aria-label="Calcul précédent">""" in latest)
         assertTrue("""<span class="wages-picker__step" aria-disabled="true" aria-label="Pas de calcul plus récent">""" in latest)
-        assertTrue("""<summary class="wages-date__button">mar. 20 oct. · 14:30<span class="emp-badge emp-badge--solid">dernier</span></summary>""" in latest)
+        assertTrue("""<summary class="wages-date__button">mar. 20 oct. · 14:30<span class="emp-badge emp-badge--neutral">dernier</span></summary>""" in latest)
         assertTrue("""value="2026-10-20" min="2026-10-20" max="2026-10-20"""" in latest)
         assertFalse("Ancien calcul" in latest)
 
@@ -215,10 +216,8 @@ class WagesPageTest {
         syncAndSignIn()
         val page = page()
 
-        assertTrue(Regex("""<header class="emp-header"><div class="emp-header__inner"><a href="/" class="emp-logo"><svg[^>]*>.*?</svg>EMP</a>""") in page)
-        assertTrue("""<a href="/wages" class="emp-tab" aria-current="page">Salaires</a>""" in page)
-        assertTrue("""<a href="/update-levels" class="emp-tab">Niveaux</a>""" in page)
-        assertTrue("""<a href="/debts" class="emp-tab">Dettes</a>""" in page)
+        assertTrue(Regex("""<header class="emp-header"><div class="emp-header__inner"><a href="/me" class="emp-logo"><svg[^>]*>.*?</svg>EMP</a>""") in page)
+        assertTrue("""<nav class="emp-nav" aria-label="Navigation principale"><a href="/me" class="emp-tab">Moi</a><a href="/wages" class="emp-tab" aria-current="page">Salaires</a><a href="/alliance" class="emp-tab">Alliance</a></nav><span class="emp-header__user">Fourmi · chef</span>""" in page)
         // Migrated to the design system: without the former styles
         assertFalse("<style>" in page)
     }
@@ -234,7 +233,7 @@ class WagesPageTest {
         assertEquals(listOf("42 000", "10 000"), leftToSend(page))
         assertTrue("""role="progressbar" aria-label="Envoyé par P1" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88"""" in page)
         assertTrue("""<li class="giver__delivery giver__delivery--done" data-pseudo="p3"><span class="giver__recipient">→ P3</span><span class="amount">78 000</span><span class="giver__state"><span class="emp-row__done">✓<span class="giver__state-word"> envoyé</span></span></span></li>""" in page)
-        assertTrue("""<span class="giver__recipient">→ P4<span class="caption text-secondary">2 000 envoyés, reste 10 000</span></span>""" in page)
+        assertTrue("""<span class="giver__recipient">→ P4<span class="giver__partial caption text-secondary">2 000 envoyés, reste 10 000</span></span><span class="amount">12 000</span><span class="giver__state"><span class="giver__state-left small text-secondary">reste 10 000</span></span>""" in page)
         assertEquals(listOf("Envoyé" to "60 %", "Reste · 2 livreurs" to "52 000"), tiles(page).drop(2))
 
         recordConvoys("P1", "P4" to "10 000")
@@ -252,7 +251,7 @@ class WagesPageTest {
 
         val page = page()
 
-        assertTrue("""<details class="method" id="method"><summary class="emp-disclosure emp-disclosure--card">Comment sont calculés les salaires ?</summary>""" in page)
+        assertTrue("""<details class="method" id="method"><summary class="emp-disclosure emp-disclosure--card">Comment sont calculés les salaires ?<svg class="emp-disclosure__chevron"""" in page)
         assertTrue("48 bois par cm² de TdC et par jour" in page)
         assertTrue("Une colonie reverse à son maître 20 % de sa production, plus 1 % par niveau d'étable du maître." in page)
         assertTrue("Alliance : 408 000" in page)
@@ -278,9 +277,9 @@ class WagesPageTest {
         twoComputations()
         val history = wageHistory()
 
-        val viewer = plain(createHTML().html { wagesPage(history, viewerId = 2) })
-        val chief = plain(createHTML().html { wagesPage(history, chief = true) })
-        val detail = plain(createHTML().html { wagesPage(history, chief = true, detail = true) })
+        val viewer = plain(createHTML().html { wagesPage(history, Viewer(2, "P2", chief = false, accessLinkId = 0)) })
+        val chief = plain(createHTML().html { wagesPage(history, Viewer(3, "P3", chief = true, accessLinkId = 0)) })
+        val detail = plain(createHTML().html { wagesPage(history, Viewer(3, "P3", chief = true, accessLinkId = 0), detail = true) })
 
         assertEquals("P2", deliveryRows(viewer).first()[0])
         assertTrue("""<span class="player-name giver__pseudo">P2<span class="emp-badge emp-badge--you">toi</span></span>""" in viewer)
@@ -288,9 +287,13 @@ class WagesPageTest {
         assertTrue("toi, puis le plus gros reste" in viewer)
         assertTrue("""<tr class="emp-table__you" data-pseudo="p2"><td>P2 (toi)</td>""" in viewer)
         assertFalse("Détail complet" in viewer)
+        // A chief reads the largest amount left first, their own included
+        val chiefGiver = plain(createHTML().html { wagesPage(history, Viewer(2, "P2", chief = true, accessLinkId = 0)) })
+        assertEquals("P1", deliveryRows(chiefGiver).first()[0])
+        assertTrue("le plus gros reste d'abord" in chiefGiver)
 
-        assertTrue("""<form action="/wages#balances" method="get" class="balances__toggle"><input type="hidden" name="id" value="2">""" in chief)
-        assertTrue("""<input type="checkbox" name="detail" value="1" onchange="this.form.submit()">Détail complet<span class="emp-badge emp-badge--leader">Chef</span>""" in chief)
+        assertTrue("""<form action="/wages#balances" method="get" class="balances__toggle" data-submit-on-change=""><input type="hidden" name="id" value="2">""" in chief)
+        assertTrue("""<input type="checkbox" name="detail" value="1">Détail complet<span class="emp-badge emp-badge--leader">Chef</span>""" in chief)
         assertFalse("TdC moyen" in chief)
 
         assertTrue("""name="detail" value="1" checked="checked"""" in detail)

@@ -5,4 +5,4 @@
 - Source : https://claude.ai/artifact/XDatPoKAZScoY8cJwfervp (`project/tokens.css`, `project/components/bundle.css`)
 - Version copiée : 1793221483-453f, du 28/10/2026
 
-`base.css` porte les styles de base propres au site. Les trois feuilles sont intégrées au binaire par la tâche Gradle `generateStylesheets`, sous un nom qui change avec leur contenu.
+`base.css` porte les styles de base propres au site, `emp.js` le script commun. Ces fichiers sont intégrés au binaire par la tâche Gradle `generateAssets`, sous un nom qui change avec leur contenu.

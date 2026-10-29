@@ -1,0 +1,17 @@
+-- When the levels were last saved or confirmed unchanged, and by whom: the player or a chief. Null before
+ALTER TABLE players ADD COLUMN levels_updated_at TEXT;
+ALTER TABLE players ADD COLUMN levels_updated_by INTEGER;
+
+-- Each level saved with another value, so that it can be undone and its author shown
+CREATE TABLE player_level_changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    player_id INTEGER NOT NULL,
+    -- PlayerLevel name
+    kind TEXT NOT NULL,
+    old_level INTEGER NOT NULL,
+    new_level INTEGER NOT NULL,
+    changed_by INTEGER NOT NULL,
+    changed_at TEXT NOT NULL
+);
+
+CREATE INDEX player_level_changes_player_id_idx ON player_level_changes (player_id);

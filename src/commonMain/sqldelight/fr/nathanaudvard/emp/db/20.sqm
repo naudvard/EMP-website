@@ -1,0 +1,2 @@
+-- The latest computation the player saw on their page, for the newer ones to be pointed out
+ALTER TABLE players ADD COLUMN last_seen_computation_id INTEGER;

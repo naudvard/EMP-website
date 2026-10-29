@@ -1,6 +1,7 @@
 insertConvoy:
-INSERT INTO convoys (computation_id, from_player_id, to_player_id, amount, sent_at)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO convoys (computation_id, from_player_id, to_player_id, amount, sent_at, source, arrives_at, return_at, declared_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id;
 
 selectConvoys:
 SELECT * FROM convoys WHERE computation_id = ? ORDER BY id;
@@ -8,3 +9,7 @@ SELECT * FROM convoys WHERE computation_id = ? ORDER BY id;
 -- Only the player who sent the convoy removes it
 deleteConvoy:
 DELETE FROM convoys WHERE id = ? AND from_player_id = ?;
+
+-- A declared convoy found in a pasted message gets its times
+setConvoyTimes:
+UPDATE convoys SET arrives_at = ?, return_at = ? WHERE id = ?;

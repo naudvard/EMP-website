@@ -1,0 +1,7 @@
+-- 'pasted' from the game's messages, or 'declared' sent without one
+ALTER TABLE convoys ADD COLUMN source TEXT NOT NULL DEFAULT 'pasted';
+-- From the game's message: when the convoy reaches its recipient, and when it is back. Null when declared
+ALTER TABLE convoys ADD COLUMN arrives_at TEXT;
+ALTER TABLE convoys ADD COLUMN return_at TEXT;
+-- The player who recorded it, a chief for another player. Null for the convoys recorded before
+ALTER TABLE convoys ADD COLUMN declared_by INTEGER;

@@ -6,7 +6,7 @@ import fr.nathanaudvard.emp.web.pages.MessageVariant
 import fr.nathanaudvard.emp.web.pages.empBtn
 import fr.nathanaudvard.emp.web.pages.empMessage
 import fr.nathanaudvard.emp.web.pages.empProgress
-import fr.nathanaudvard.emp.web.resources.Home
+import fr.nathanaudvard.emp.web.resources.Me
 import fr.nathanaudvard.emp.web.resources.Wages
 import io.ktor.client.plugins.resources.get
 import io.ktor.client.request.get
@@ -28,7 +28,7 @@ class DesignSystemTest {
     @Test
     fun `pages load the font then the tokens the components and the base styles without any colour of their own`() = appTest {
         syncAndSignIn()
-        for (page in listOf(client.get(Home()).bodyAsText(), client.get(Wages()).bodyAsText())) {
+        for (page in listOf(client.get(Me()).bodyAsText(), client.get(Wages()).bodyAsText())) {
             assertTrue("""<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&amp;display=swap" rel="stylesheet">""" in page)
             val sheets = stylesheetLinks.findAll(page).map { it.groupValues[1] }.toList()
             assertEquals(listOf("tokens", "bundle", "base"), sheets.map { it.removePrefix("/assets/").substringBefore('-') })
@@ -40,7 +40,7 @@ class DesignSystemTest {
     @Test
     fun `stylesheets are cached for good under a name that changes with their content`() = appTest {
         syncAndSignIn()
-        val sheets = stylesheetLinks.findAll(client.get(Home()).bodyAsText()).map { it.groupValues[1] }.toList()
+        val sheets = stylesheetLinks.findAll(client.get(Me()).bodyAsText()).map { it.groupValues[1] }.toList()
         for (sheet in sheets) {
             assertTrue(Regex("""/assets/[a-z]+-[0-9a-f]{10}\.css""").matches(sheet), sheet)
             val res = client.get(sheet)

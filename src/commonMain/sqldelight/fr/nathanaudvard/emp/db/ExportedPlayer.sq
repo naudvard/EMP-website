@@ -9,10 +9,13 @@ INSERT OR IGNORE INTO exported_player_syncs (version, alliance_tag) VALUES (?, ?
 
 -- The latest version synced for the tag, not the latest one stored: it may have been synced for other tags only
 latestMembers:
-SELECT id, pseudo, master_player_id, grade FROM exported_players
+SELECT id, pseudo, master_player_id, grade, field FROM exported_players
 WHERE alliance_tag = :allianceTag
     AND version = (SELECT max(version) FROM exported_player_syncs WHERE alliance_tag = :allianceTag)
 ORDER BY pseudo COLLATE NOCASE;
+
+latestVersion:
+SELECT max(version) AS version FROM exported_player_syncs WHERE alliance_tag = ?;
 
 versionsSince:
 SELECT version FROM exported_player_syncs WHERE alliance_tag = ? AND version >= ?;

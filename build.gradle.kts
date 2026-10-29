@@ -38,25 +38,27 @@ val downloadSqlite = tasks.register("downloadSqlite") {
     }
 }
 
-// Kotlin/Native has no resources: the stylesheets are compiled into the binary, named after their content so that
-// browsers can cache them for good
-val generateStylesheets = tasks.register("generateStylesheets") {
+// Kotlin/Native has no resources: the stylesheets and scripts are compiled into the binary, named after their content
+// so that browsers can cache them for good
+val generateAssets = tasks.register("generateAssets") {
     val sourceDir = layout.projectDirectory.dir("src/nativeMain/assets")
-    val outputDir = layout.buildDirectory.dir("generated/stylesheets")
+    val outputDir = layout.buildDirectory.dir("generated/assets")
     inputs.dir(sourceDir)
     outputs.dir(outputDir)
     doLast {
-        val sheets = sourceDir.asFile.walkTopDown().filter { it.extension == "css" }.sortedBy { it.name }.map { file ->
+        val kinds = mapOf("css" to "Css", "js" to "Js")
+        val assets = sourceDir.asFile.walkTopDown().filter { it.extension in kinds }.sortedBy { it.name }.map { file ->
             val content = file.readText().replace("\r\n", "\n")
             val hash = MessageDigest.getInstance("SHA-256").digest(content.toByteArray())
                 .joinToString("") { "%02x".format(it) }.take(10)
             val literal = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("\n", "\\n")
-            "internal val ${file.nameWithoutExtension}Css = Stylesheet(\"${file.nameWithoutExtension}-$hash.css\", \"$literal\")"
+            val name = file.nameWithoutExtension
+            "internal val $name${kinds.getValue(file.extension)} = Asset(\"$name-$hash.${file.extension}\", \"$literal\")"
         }
         val dir = outputDir.get().asFile.apply { deleteRecursively() }.resolve("fr/nathanaudvard/emp/web/assets")
         dir.mkdirs()
-        dir.resolve("Stylesheets.kt").writeText(
-            "package fr.nathanaudvard.emp.web.assets\n\n${sheets.joinToString("\n")}\n"
+        dir.resolve("Assets.kt").writeText(
+            "package fr.nathanaudvard.emp.web.assets\n\n${assets.joinToString("\n")}\n"
         )
     }
 }
@@ -107,7 +109,7 @@ kotlin {
 
     sourceSets {
         nativeMain {
-            kotlin.srcDir(generateStylesheets)
+            kotlin.srcDir(generateAssets)
         }
         nativeMain.dependencies {
             implementation(libs.ktor.server.core)

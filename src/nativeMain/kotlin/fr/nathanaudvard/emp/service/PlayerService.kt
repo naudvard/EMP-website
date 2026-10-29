@@ -3,9 +3,13 @@ package fr.nathanaudvard.emp.service
 import fr.nathanaudvard.emp.database.ExportedPlayerRepository
 import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.domain.model.AllianceMember
+import fr.nathanaudvard.emp.domain.model.LevelChange
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
+import fr.nathanaudvard.emp.domain.model.PlayerLevelsState
+import fr.nathanaudvard.emp.domain.model.PlayerState
 import fr.nathanaudvard.emp.domain.model.WageSettlement
+import kotlin.time.Instant
 
 class PlayerService(
     private val exportedPlayers: ExportedPlayerRepository,
@@ -26,8 +30,19 @@ class PlayerService(
         return members.associate { it.id to (saved[it.id] ?: PlayerLevels()) }
     }
 
-    suspend fun saveLevel(playerId: Long, kind: PlayerLevel, level: Long) =
-        players.saveLevel(playerId, kind, level)
+    suspend fun saveLevel(playerId: Long, kind: PlayerLevel, level: Long, by: Long, at: Instant): LevelChange? =
+        players.saveLevel(playerId, kind, level, by, at)
+
+    suspend fun confirmLevels(playerId: Long, by: Long, at: Instant) = players.confirmLevels(playerId, by, at)
+
+    suspend fun levelChange(id: Long): LevelChange? = players.levelChange(id)
+
+    suspend fun levelsState(playerId: Long): PlayerLevelsState = players.levelsState(playerId)
+
+    suspend fun lastSeenComputation(playerId: Long): Long? = players.lastSeenComputation(playerId)
+
+    suspend fun setLastSeenComputation(playerId: Long, computationId: Long) =
+        players.setLastSeenComputation(playerId, computationId)
 
     // A member without a saved choice delivers
     suspend fun wageSettlements(members: List<AllianceMember>): Map<Long, WageSettlement> {
@@ -41,6 +56,12 @@ class PlayerService(
         return members.associate { it.id to (saved[it.id] ?: 0) }
     }
 
-    suspend fun saveWageSettlements(settlements: Map<Long, WageSettlement>) =
-        players.saveWageSettlements(settlements)
+    suspend fun saveWageSettlement(playerId: Long, settlement: WageSettlement, by: Long, at: Instant) =
+        players.saveWageSettlement(playerId, settlement, by, at)
+
+    // A member never saved has the defaults: delivers, owes nothing, levels at 0
+    suspend fun states(members: List<AllianceMember>): Map<Long, PlayerState> {
+        val saved = players.states(members.map { it.id })
+        return members.associate { it.id to (saved[it.id] ?: PlayerState()) }
+    }
 }

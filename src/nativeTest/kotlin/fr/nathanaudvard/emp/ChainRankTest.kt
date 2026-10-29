@@ -41,9 +41,9 @@ class ChainRankTest {
 
         assertEquals(
             listOf(
-                AllianceMember(3, "Recrue", null, null),
-                AllianceMember(1, "Stonotwo", null, "G1"),
-                AllianceMember(2, "Verso", null, "C"),
+                AllianceMember(3, "Recrue", null, null, fourmi.field),
+                AllianceMember(1, "Stonotwo", null, "G1", fourmi.field),
+                AllianceMember(2, "Verso", null, "C", fourmi.field),
             ),
             members(),
         )

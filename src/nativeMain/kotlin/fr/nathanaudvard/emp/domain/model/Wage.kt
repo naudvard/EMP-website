@@ -36,6 +36,17 @@ data class WageComputation(
     // What the convoys from a player to another add up to
     fun sent(fromPlayerId: Long, toPlayerId: Long): Long =
         convoys.filter { it.fromPlayerId == fromPlayerId && it.toPlayerId == toPlayerId }.sumOf { it.amount }
+
+    // What the convoys sent towards a delivery cover, never more than the delivery
+    fun covered(delivery: WageDelivery): Long = minOf(sent(delivery.fromPlayerId, delivery.toPlayerId), delivery.amount)
+}
+
+enum class ConvoySource {
+    // From the game's message, which gives its times
+    PASTED,
+
+    // Sent without a message: the rest of a delivery
+    DECLARED,
 }
 
 data class Convoy(
@@ -43,7 +54,13 @@ data class Convoy(
     val fromPlayerId: Long,
     val toPlayerId: Long,
     val amount: Long,
+    // When it was recorded
     val sentAt: Instant,
+    val source: ConvoySource = ConvoySource.PASTED,
+    val arrivesAt: Instant? = null,
+    val returnAt: Instant? = null,
+    // Who recorded it, null for the convoys recorded before it was stored
+    val declaredBy: Long? = null,
 )
 
 // Null bounds when the alliance has no computation
@@ -115,3 +132,6 @@ data class LayingNeed(
     val reductionFactor: Double,
     val relativeNeed: Long,
 )
+
+// A computation with the id it was saved under
+data class SavedComputation(val id: Long, val computation: WageComputation)

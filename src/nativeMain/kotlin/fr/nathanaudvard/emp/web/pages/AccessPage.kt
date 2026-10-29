@@ -2,16 +2,13 @@ package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.DeviceCode
 import fr.nathanaudvard.emp.domain.model.SignIn
-import fr.nathanaudvard.emp.service.DEVICE_CODE_DURATION
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.AccessNotice
-import fr.nathanaudvard.emp.web.resources.Home
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
 import kotlinx.html.InputType
 import kotlinx.html.OL
 import kotlinx.html.SPAN
-import kotlinx.html.a
 import kotlinx.html.div
 import kotlinx.html.form
 import kotlinx.html.h1
@@ -34,7 +31,7 @@ fun HTML.accessPage(
     notice: String? = null,
     code: String = "",
     codeError: String? = null,
-) = layout("Accès membre", tab = null, legacyStyle = false, navigation = false) {
+) = layout("Accès membre", tab = null, navigation = false) {
     div("access") {
         div("access__intro") {
             h1("page-title") { +"Accès membre" }
@@ -58,7 +55,7 @@ fun HTML.accessPage(
                 +"Déjà connecté sur un autre appareil ?"
             }
             p("access__hint text-secondary") {
-                +"Sur l'appareil déjà connecté, touche « Connecter un autre appareil » sur l'accueil, puis saisis le code affiché."
+                +"Sur l'appareil déjà connecté, ouvre Moi › Connecter un autre appareil, puis saisis le code affiché."
             }
             div("access__code-row") {
                 input(InputType.text, name = DEVICE_CODE_FIELD, classes = "emp-field access__code-field") {
@@ -127,15 +124,13 @@ fun SignIn.message(allianceTag: String): String? = when (this) {
 // "K7Q-4MX": read and typed in two halves
 fun DeviceCode.display() = code.chunked(3).joinToString("-")
 
-fun HTML.devicePage(code: DeviceCode) = layout("Connecter un autre appareil", tab = null, legacyStyle = false) {
-    div("access") {
-        h1("page-title") { +"Connecter un autre appareil" }
-        empCard(cssClass = "device-code") {
-            span("text-secondary") { +"Saisis ce code sur l'autre appareil" }
-            strong("device-code__value") { +code.display() }
-            span("text-secondary") { +"Valable ${DEVICE_CODE_DURATION.inWholeMinutes} minutes, une seule fois." }
-        }
-        p("text-secondary") { +"Sur l'autre appareil, ouvre le site : l'écran Accès demande ce code." }
-        a(href(Home())) { +"Retour à l'accueil" }
-    }
-}
+const val ACCESS_MESSAGE_SUBJECT = "Ton accès EMP"
+
+// The body of the private message, its subject being typed apart in the game
+fun accessMessage(link: String) = """
+    |Voici ton lien personnel pour le site de l'alliance :
+    |$link
+    |
+    |Ouvre-le une fois sur ton téléphone : il s'en souviendra pendant un an.
+    |Ensuite, « Forum externe » dans le menu de Fourmizzz t'amène directement sur ta page.
+""".trimMargin()

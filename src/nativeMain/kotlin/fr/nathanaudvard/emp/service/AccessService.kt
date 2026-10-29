@@ -59,6 +59,4 @@ class AccessService(
     suspend fun chiefs(playerIds: Collection<Long>): Set<Long> = players.chiefs(playerIds)
 
     suspend fun setChief(playerId: Long, chief: Boolean) = players.setChief(playerId, chief)
-
-    suspend fun lastSeen(playerIds: Collection<Long>): Map<Long, Instant> = players.lastSeen(playerIds)
 }

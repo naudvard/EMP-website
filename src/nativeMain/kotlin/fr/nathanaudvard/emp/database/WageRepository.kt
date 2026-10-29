@@ -4,6 +4,7 @@ import fr.nathanaudvard.emp.db.EmpDatabase
 import fr.nathanaudvard.emp.db.Wage_deliveries
 import fr.nathanaudvard.emp.db.Wages
 import fr.nathanaudvard.emp.domain.model.Convoy
+import fr.nathanaudvard.emp.domain.model.ConvoySource
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageDelivery
@@ -107,23 +108,50 @@ class WageRepository(database: EmpDatabase) {
                 },
                 debts = wages.associate { it.player_id to it.debt },
                 convoys = convoyQueries.selectConvoys(computation.id).executeAsList().map {
-                    Convoy(it.id, it.from_player_id, it.to_player_id, it.amount, Instant.parse(it.sent_at))
+                    Convoy(
+                        id = it.id,
+                        fromPlayerId = it.from_player_id,
+                        toPlayerId = it.to_player_id,
+                        amount = it.amount,
+                        sentAt = Instant.parse(it.sent_at),
+                        source = ConvoySource.valueOf(it.source.uppercase()),
+                        arrivesAt = it.arrives_at?.let(Instant::parse),
+                        returnAt = it.return_at?.let(Instant::parse),
+                        declaredBy = it.declared_by,
+                    )
                 },
             )
         }
     }
 
-    suspend fun saveConvoys(computationId: Long, sentAt: Instant, convoys: List<WageDelivery>) =
-        withContext(Dispatchers.IO) {
-            convoyQueries.transaction {
-                convoys.forEach {
-                    convoyQueries.insertConvoy(computationId, it.fromPlayerId, it.toPlayerId, it.amount, sentAt.toString())
-                }
-            }
-        }
+    suspend fun saveConvoy(
+        computationId: Long,
+        convoy: WageDelivery,
+        sentAt: Instant,
+        source: ConvoySource,
+        arrivesAt: Instant?,
+        returnAt: Instant?,
+        declaredBy: Long,
+    ): Long = withContext(Dispatchers.IO) {
+        convoyQueries.insertConvoy(
+            computationId,
+            convoy.fromPlayerId,
+            convoy.toPlayerId,
+            convoy.amount,
+            sentAt.toString(),
+            source.name.lowercase(),
+            arrivesAt?.toString(),
+            returnAt?.toString(),
+            declaredBy,
+        ).executeAsOne()
+    }
 
-    suspend fun deleteConvoy(id: Long, fromPlayerId: Long) = withContext(Dispatchers.IO) {
-        convoyQueries.deleteConvoy(id, fromPlayerId)
+    suspend fun setConvoyTimes(id: Long, arrivesAt: Instant?, returnAt: Instant?) = withContext(Dispatchers.IO) {
+        convoyQueries.setConvoyTimes(arrivesAt?.toString(), returnAt?.toString(), id)
+    }
+
+    suspend fun deleteConvoys(ids: Collection<Long>, fromPlayerId: Long) = withContext(Dispatchers.IO) {
+        convoyQueries.transaction { ids.forEach { convoyQueries.deleteConvoy(it, fromPlayerId) } }
     }
 }
 

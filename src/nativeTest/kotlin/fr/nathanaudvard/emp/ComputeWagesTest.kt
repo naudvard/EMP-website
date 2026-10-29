@@ -26,14 +26,7 @@ class ComputeWagesTest {
 
     private suspend fun AppTestScope.saveLevel(pseudo: String, kind: String, level: Int) {
         signIn(pseudo)
-        client.submitForm(
-            "/update-levels",
-            parameters {
-                append("pseudo", pseudo)
-                append("kind", kind)
-                append("level", level.toString())
-            },
-        )
+        client.submitForm("/me/levels/$kind", parameters { append("level", level.toString()) })
     }
 
     private fun WageComputationResponse.wage(pseudo: String): WageResponse = wages.single { it.pseudo == pseudo }

@@ -1,12 +1,13 @@
 package fr.nathanaudvard.emp.web.pages
 
+import fr.nathanaudvard.emp.domain.model.gameTimeZone
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToLong
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -14,8 +15,6 @@ import kotlin.time.Instant
 // Never split over two lines: between a number and its unit, and the narrower one between groups of digits
 const val NBSP = " "
 const val DIGIT_GROUP_SEPARATOR = " "
-
-val gameTimeZone = TimeZone.of("Europe/Paris")
 
 private val weekdays = listOf("lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim.")
 
@@ -69,7 +68,59 @@ fun formatDue(instant: Instant, now: Instant): String {
     }
 }
 
+// What is due by the next computation: "avant 18:00" the same day, "avant demain 18:00", else "avant le" the date
+fun formatDeadline(instant: Instant, now: Instant): String = when (daysBetween(now, instant)) {
+    in Int.MIN_VALUE..0 -> "avant ${instant.local().time()}"
+    1 -> "avant demain ${instant.local().time()}"
+    else -> "avant le ${formatDateTime(instant)}"
+}
+
 fun formatArrival(instant: Instant): String = "arrive vers ${instant.local().time()}"
+
+fun formatTime(instant: Instant): String = instant.local().time()
+
+// When something was just done: "à l'instant", "il y a 20 min", then "aujourd'hui 10:12", "hier 19:42", the date
+fun formatSince(instant: Instant, now: Instant): String =
+    if (now - instant < 1.hours) formatRelative(instant, now) else formatDayTime(instant, now)
+
+// "de Formica", "d'Oecophylla"
+fun ofPseudo(pseudo: String): String =
+    if (pseudo.firstOrNull()?.let { it.lowercaseChar() in "aeiouyhéèêàâîôû" } == true) "d'$pseudo" else "de $pseudo"
+
+// When something was recorded: "aujourd'hui 10:12", "hier 19:42", else the date
+fun formatDayTime(instant: Instant, now: Instant): String = when (daysBetween(instant, now)) {
+    0 -> "aujourd'hui ${instant.local().time()}"
+    1 -> "hier ${instant.local().time()}"
+    else -> formatDateTime(instant)
+}
+
+// After "de", for the data of an export: "d'aujourd'hui 12:00", "d'hier 12:00", else "du mar. 20 oct. 12:00"
+fun formatOfDayTime(instant: Instant, now: Instant): String = when (daysBetween(instant, now)) {
+    0 -> "d'aujourd'hui ${instant.local().time()}"
+    1 -> "d'hier ${instant.local().time()}"
+    else -> "du ${formatDateTime(instant)}"
+}
+
+// A period in days: "1 jour", "0,75 jour", "1,5 jour", "2 jours"
+fun formatDays(days: Double): String {
+    val hundredths = (days * 100).roundToLong()
+    val number = when {
+        hundredths % 100 == 0L -> formatAmount(hundredths / 100)
+        hundredths % 10 == 0L -> formatDecimal(hundredths / 10, 1)
+        else -> formatDecimal(hundredths, 2)
+    }
+    return "$number$NBSP${if (hundredths >= 200) "jours" else "jour"}"
+}
+
+// A research time: "28 min", "3 h 57", "2 j 4 h"
+fun formatSpan(duration: Duration): String {
+    val minutes = duration.inWholeMinutes
+    return when {
+        minutes < 60 -> "$minutes${NBSP}min"
+        minutes < 24 * 60 -> "${minutes / 60}${NBSP}h ${(minutes % 60).toString().padStart(2, '0')}"
+        else -> "${minutes / (24 * 60)}${NBSP}j ${minutes % (24 * 60) / 60}${NBSP}h"
+    }
+}
 
 fun formatAmount(amount: Long): String {
     val grouped = amount.toString().removePrefix("-").reversed().chunked(3).joinToString(DIGIT_GROUP_SEPARATOR).reversed()

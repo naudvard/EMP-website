@@ -25,10 +25,15 @@ class ExportedPlayerRepository(database: EmpDatabase) {
 
     suspend fun latestMembers(allianceTag: String): List<AllianceMember> =
         withContext(Dispatchers.IO) {
-            queries.latestMembers(allianceTag) { id, pseudo, masterPlayerId, grade ->
-                AllianceMember(id, pseudo, masterPlayerId, chainRankOf(grade))
+            queries.latestMembers(allianceTag) { id, pseudo, masterPlayerId, grade, field ->
+                AllianceMember(id, pseudo, masterPlayerId, chainRankOf(grade), field)
             }.executeAsList()
         }
+
+    // The latest version synced for the alliance, null when none
+    suspend fun latestVersion(allianceTag: String): String? = withContext(Dispatchers.IO) {
+        queries.latestVersion(allianceTag).executeAsOne().version
+    }
 
     // Versions synced for the alliance
     suspend fun versionsSince(allianceTag: String, version: String): List<String> = withContext(Dispatchers.IO) {

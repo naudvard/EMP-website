@@ -6,7 +6,8 @@ import fr.nathanaudvard.emp.fourmizzz.PlayerRes
 import fr.nathanaudvard.emp.service.AccessService
 import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.resources.Access
-import fr.nathanaudvard.emp.web.resources.Home
+import fr.nathanaudvard.emp.web.resources.Alliance
+import fr.nathanaudvard.emp.web.resources.Me
 import io.ktor.client.plugins.resources.get
 import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.accept
@@ -38,9 +39,12 @@ class AccessTest {
 
     private val AppTestScope.browser get() = client.config { followRedirects = false }
 
+    // Without the indentation between tags, with plain spaces in the amounts and dates
+    private fun plain(page: String) = page.replace(Regex(">\\s+<"), "><").replace(NBSP, " ")
+
     // The text of the message the chief copies, the script asking for it alone
-    private suspend fun AppTestScope.copyMessage(playerId: Long): String =
-        client.post(Access.Links.Message(playerId = playerId)) { accept(ContentType.Text.Plain) }.bodyAsText()
+    private suspend fun AppTestScope.copyMessage(pseudo: String): String =
+        client.post(Alliance.Member.Message(Alliance.Member(pseudo = pseudo))) { accept(ContentType.Text.Plain) }.bodyAsText()
 
     private fun link(message: String) = Regex("""http://localhost(/access/[0-9a-f]+)""").find(message)!!.groupValues[1]
 
@@ -69,7 +73,7 @@ class AccessTest {
         val res = open("/access/$token")
 
         assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/", res.headers[HttpHeaders.Location])
+        assertEquals("/me", res.headers[HttpHeaders.Location])
         val cookie = res.setCookie().single { it.name == SESSION_COOKIE }
         assertEquals(31_536_000, cookie.maxAge)
         assertEquals("/", cookie.path)
@@ -78,7 +82,7 @@ class AccessTest {
         assertEquals("Lax", cookie.extensions["SameSite"])
         assertEquals(64, cookie.value.length)
 
-        val home = browser.get(Home())
+        val home = browser.get(Me())
         assertEquals(HttpStatusCode.OK, home.status)
         assertEquals(cookie.value, home.setCookie().single { it.name == SESSION_COOKIE }.value)
         // Only hashes are stored
@@ -94,12 +98,12 @@ class AccessTest {
         signIn("Fourmi")
         signOut()
 
-        for (page in listOf("/", "/wages", "/update-levels", "/my-deliveries", "/debts", "/access/links")) {
+        for (page in listOf("/", "/me", "/wages", "/alliance", "/alliance/members/abeille")) {
             val res = browser.get(page)
             assertEquals(HttpStatusCode.Found, res.status, page)
             assertEquals("/access", res.headers[HttpHeaders.Location], page)
         }
-        assertEquals(HttpStatusCode.Found, browser.submitForm("/debts", parameters { append("player-124", "ACCUMULATE_DEBT") }).status)
+        assertEquals(HttpStatusCode.Found, browser.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }).status)
         assertEquals(listOf("DELIVER"), query("SELECT wage_settlement FROM players WHERE id = 124") { it.getString(0) })
 
         val access = client.get(Access()).bodyAsText()
@@ -125,21 +129,19 @@ class AccessTest {
         syncMembers()
         signIn("Fourmi")
 
-        val before = client.get(Access.Links()).bodyAsText()
-        val message = copyMessage(abeille.id)
+        val before = plain(client.get(Alliance()).bodyAsText())
+        val message = copyMessage(abeille.pseudo)
         val res = open(link(message))
-        val home = client.get(Home()).bodyAsText()
+        val home = client.get(Me()).bodyAsText()
         signIn("Fourmi")
-        val after = client.get(Access.Links()).bodyAsText()
+        val after = plain(client.get(Alliance.Member(pseudo = "abeille")).bodyAsText())
 
-        assertTrue("""<h1 class="page-title">Accès des membres</h1><span class="emp-badge emp-badge--leader">Chef</span>""" in before.replace(Regex(">\\s+<"), "><"))
-        assertTrue("""<span class="text-secondary">Jamais connecté</span>""" in before)
-        assertTrue("""<form action="/access/links/124/message" method="post"><button type="submit" class="emp-btn emp-btn--secondary emp-btn--small" data-copy="">Copier le MP d'accès</button>""" in before.replace(Regex(">\\s+<"), "><"))
+        assertTrue("""<div class="alliance-members__access"><form action="/alliance/members/abeille/message" method="post"><button type="submit" class="emp-btn emp-btn--secondary emp-btn--small" data-copy="">Copier le MP d'accès</button>""" in before)
         assertTrue(message.startsWith("Voici ton lien personnel pour le site de l'alliance :\nhttp://localhost/access/"))
         assertTrue("« Forum externe »" in message)
         assertEquals(HttpStatusCode.Found, res.status)
-        assertFalse("Accès des membres" in home)
-        assertTrue("Lien envoyé le 20${NBSP}oct. · dernière visite à l'instant" in after)
+        assertTrue("Mes niveaux" in home)
+        assertTrue("Lien envoyé le 20 oct. · dernière visite à l'instant" in after)
         assertTrue("Remplacer le lien de abeille" in after)
     }
 
@@ -147,18 +149,18 @@ class AccessTest {
     fun `copying a message again renews the link and keeps the devices signed in`() = appTest {
         syncMembers()
         signIn("Fourmi")
-        val first = link(copyMessage(abeille.id))
-        val second = link(copyMessage(abeille.id))
+        val first = link(copyMessage(abeille.pseudo))
+        val second = link(copyMessage(abeille.pseudo))
 
         assertEquals(HttpStatusCode.Forbidden, open(first).status)
         assertEquals(HttpStatusCode.Found, open(second).status)
         val member = identity.session
         signIn("Fourmi")
-        copyMessage(abeille.id)
+        copyMessage(abeille.pseudo)
 
         assertEquals(HttpStatusCode.Forbidden, open(second).status)
         identity.session = member
-        assertEquals(HttpStatusCode.OK, browser.get(Home()).status)
+        assertEquals(HttpStatusCode.OK, browser.get(Me()).status)
     }
 
     @Test
@@ -166,7 +168,7 @@ class AccessTest {
         syncMembers()
         signIn("Fourmi")
 
-        val page = client.post(Access.Links.Message(playerId = abeille.id)).bodyAsText()
+        val page = client.post(Alliance.Member.Message(Alliance.Member(pseudo = "abeille"))).bodyAsText()
 
         assertTrue("Message pour abeille, objet « Ton accès EMP »" in page)
         assertTrue(Regex("""<textarea[^>]*id="access-message"[^>]*>Voici ton lien personnel""").containsMatchIn(page))
@@ -176,26 +178,26 @@ class AccessTest {
     fun `replacing a link signs out every device it opened`() = appTest {
         syncMembers()
         signIn("Fourmi")
-        val old = link(copyMessage(abeille.id))
+        val old = link(copyMessage(abeille.pseudo))
         open(old)
         val phone = identity.session
         val code = showDeviceCode()
         val computer = typeCode(code).setCookie().single { it.name == SESSION_COOKIE }.value
         identity.session = computer
-        assertEquals(HttpStatusCode.OK, browser.get(Home()).status)
+        assertEquals(HttpStatusCode.OK, browser.get(Me()).status)
 
         signIn("Fourmi")
-        val res = client.submitForm("/access/links/124/replace", parameters { })
+        val res = client.submitForm("/alliance/members/abeille/replace", parameters { })
 
-        assertEquals("/access/links?replaced=124", res.headers[HttpHeaders.Location])
-        assertTrue("Lien de abeille remplacé" in client.get(res.headers[HttpHeaders.Location]!!).bodyAsText())
+        assertEquals("/alliance/members/abeille?notice=REPLACED#access", res.headers[HttpHeaders.Location])
+        assertTrue("Lien remplacé : ses appareils sont déconnectés." in client.get(res.headers[HttpHeaders.Location]!!).bodyAsText())
         for (session in listOf(phone, computer)) {
             identity.session = session
-            assertEquals("/access", browser.get(Home()).headers[HttpHeaders.Location])
+            assertEquals("/access", browser.get(Me()).headers[HttpHeaders.Location])
         }
         assertEquals(HttpStatusCode.Forbidden, open(old).status)
         signIn("Fourmi")
-        assertEquals(HttpStatusCode.Found, open(link(copyMessage(abeille.id))).status)
+        assertEquals(HttpStatusCode.Found, open(link(copyMessage(abeille.pseudo))).status)
     }
 
     @Test
@@ -205,7 +207,7 @@ class AccessTest {
         fourmizzz.players("202610201300", listOf(fourmi))
         sync(Exports.Players.Sync(version = "202610201300"))
 
-        val res = browser.get(Home())
+        val res = browser.get(Me())
 
         assertEquals("/access?notice=LEFT", res.headers[HttpHeaders.Location])
         assertTrue("Tu ne fais plus partie de l'alliance EMP" in client.get(res.headers[HttpHeaders.Location]!!).bodyAsText())
@@ -216,9 +218,9 @@ class AccessTest {
         syncMembers()
         signIn("abeille", chief = false)
 
-        assertEquals(HttpStatusCode.Forbidden, client.get(Access.Links()).status)
-        assertEquals(HttpStatusCode.Forbidden, client.post(Access.Links.Message(playerId = abeille.id)).status)
-        assertEquals(HttpStatusCode.Forbidden, client.submitForm("/access/links/123/replace", parameters { }).status)
+        assertEquals(HttpStatusCode.Forbidden, client.get(Alliance.Member(pseudo = "abeille")).status)
+        assertEquals(HttpStatusCode.Forbidden, client.post(Alliance.Member.Message(Alliance.Member(pseudo = "abeille"))).status)
+        assertEquals(HttpStatusCode.Forbidden, client.submitForm("/alliance/members/Fourmi/replace", parameters { }).status)
         assertTrue(query("SELECT revoked_at FROM access_links WHERE player_id = 123 AND revoked_at IS NOT NULL") { it.getString(0) }.isEmpty())
     }
 
@@ -245,10 +247,10 @@ class AccessTest {
         syncMembers()
         signIn("Fourmi")
 
-        val foreign = client.submitForm("/debts", parameters { append("player-124", "ACCUMULATE_DEBT") }) {
+        val foreign = client.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) {
             header(HttpHeaders.Origin, "https://evil.example")
         }
-        val same = client.submitForm("/debts", parameters { append("player-124", "ACCUMULATE_DEBT") }) {
+        val same = client.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) {
             header(HttpHeaders.Origin, "http://localhost")
         }
 
@@ -270,12 +272,32 @@ class AccessTest {
 
         assertTrue(Regex("""^[2-9A-HJKMNP-Z]{3}-[2-9A-HJKMNP-Z]{3}$""").matches(code))
         assertTrue("Valable 10 minutes, une seule fois." in page)
+        // Shown on the player's page, in place of the button
+        assertTrue("""<div class="me-device" id="device"><section class="emp-card device-code" role="status">""" in plain(page))
+        assertTrue("Mes niveaux" in page)
         assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/", res.headers[HttpHeaders.Location])
+        assertEquals("/me", res.headers[HttpHeaders.Location])
         identity.session = res.setCookie().single { it.name == SESSION_COOKIE }.value
-        assertTrue("Mes livraisons" in client.get("/my-deliveries").bodyAsText())
+        assertTrue("Mes niveaux" in client.get(Me()).bodyAsText())
         assertEquals(HttpStatusCode.BadRequest, again.status)
         assertTrue("Code expiré ou déjà utilisé." in again.bodyAsText())
+    }
+
+    @Test
+    fun `the code of a replaced link opens nothing`() = appTest {
+        syncMembers()
+        signIn("Fourmi")
+        open(link(copyMessage(abeille.pseudo)))
+        val code = showDeviceCode()
+        signIn("Fourmi")
+        client.submitForm("/alliance/members/abeille/replace", parameters { })
+        signOut()
+
+        val res = typeCode(code)
+
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertTrue("Code expiré ou déjà utilisé." in res.bodyAsText())
+        assertTrue(res.setCookie().isEmpty())
     }
 
     @Test

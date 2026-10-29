@@ -23,17 +23,4 @@ class Access(val notice: AccessNotice? = null) {
     @Serializable
     @Resource("device")
     class Device(val parent: Access = Access())
-
-    // Where the chiefs give the members their links. Replaced is the player whose link was just replaced
-    @Serializable
-    @Resource("links")
-    class Links(val parent: Access = Access(), val replaced: Long? = null) {
-        @Serializable
-        @Resource("{playerId}/message")
-        class Message(val parent: Links = Links(), val playerId: Long)
-
-        @Serializable
-        @Resource("{playerId}/replace")
-        class Replace(val parent: Links = Links(), val playerId: Long)
-    }
 }

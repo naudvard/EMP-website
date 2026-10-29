@@ -39,9 +39,12 @@ UPDATE sessions SET last_seen_at = :lastSeenAt, expires_at = :expiresAt WHERE id
 insertDeviceCode:
 INSERT INTO device_codes (code, player_id, access_link_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?);
 
--- The latest one: an older code may have had the same value
+-- The latest one: an older code may have had the same value. The code of a replaced link counts as used
 deviceCode:
-SELECT id, player_id, access_link_id, expires_at, used_at FROM device_codes WHERE code = ? ORDER BY id DESC LIMIT 1;
+SELECT device_codes.id, device_codes.player_id, device_codes.access_link_id, device_codes.expires_at,
+    coalesce(device_codes.used_at, access_links.revoked_at) AS used_at
+FROM device_codes JOIN access_links ON access_links.id = device_codes.access_link_id
+WHERE device_codes.code = ? ORDER BY device_codes.id DESC LIMIT 1;
 
 useDeviceCode:
 UPDATE device_codes SET used_at = ? WHERE id = ? AND used_at IS NULL;

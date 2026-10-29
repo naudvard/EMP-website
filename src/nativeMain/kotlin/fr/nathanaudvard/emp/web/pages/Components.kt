@@ -15,7 +15,6 @@ import kotlinx.html.details
 import kotlinx.html.div
 import kotlinx.html.id
 import kotlinx.html.input
-import kotlinx.html.script
 import kotlinx.html.section
 import kotlinx.html.span
 import kotlinx.html.summary
@@ -122,39 +121,53 @@ fun FlowContent.empRow(title: String, text: DIV.() -> Unit = {}, actions: DIV.()
 
 fun FlowOrPhrasingContent.empRowDone(text: String) = span("emp-row__done") { +text }
 
-// The buttons step the field, which holds the value sent with the form
-fun FlowContent.empStepper(name: String, value: Long, label: String, max: Long, compact: Boolean = false) =
-    div(classes("emp-stepper", "emp-stepper--compact".takeIf { compact })) {
-        button(type = ButtonType.button, classes = "emp-stepper__minus") {
-            attributes["data-step"] = "-1"
-            attributes["aria-label"] = "Baisser $label"
-            unsafe { +MINUS_ICON }
-        }
-        input(type = InputType.number, name = name, classes = "emp-stepper__value") {
-            this.value = value.toString()
-            min = "0"
-            this.max = max.toString()
-            attributes["inputmode"] = "numeric"
-            attributes["aria-label"] = label
-        }
-        button(type = ButtonType.button, classes = "emp-stepper__plus") {
-            attributes["data-step"] = "1"
-            attributes["aria-label"] = "Monter $label"
-            unsafe { +PLUS_ICON }
-        }
+// Each button submits its form with the value it steps to under name, the field the value typed under fieldName.
+// The field is labelled by its id, the buttons by the label. Focus keys let the shared script find them once replaced
+fun FlowContent.empStepper(
+    name: String,
+    fieldName: String,
+    id: String,
+    value: Long,
+    label: String,
+    max: Long,
+    compact: Boolean = false,
+) = div(classes("emp-stepper", "emp-stepper--compact".takeIf { compact })) {
+    button(type = ButtonType.submit, name = name, classes = "emp-stepper__minus") {
+        this.value = (value - 1).toString()
+        disabled = value <= 0
+        attributes["data-focus"] = "$id-minus"
+        attributes["aria-label"] = "$label, un niveau de moins"
+        unsafe { +MINUS_ICON }
     }
+    input(type = InputType.number, name = fieldName, classes = "emp-stepper__value") {
+        this.id = id
+        this.value = value.toString()
+        min = "0"
+        this.max = max.toString()
+        attributes["inputmode"] = "numeric"
+    }
+    button(type = ButtonType.submit, name = name, classes = "emp-stepper__plus") {
+        this.value = (value + 1).toString()
+        disabled = value >= max
+        attributes["data-focus"] = "$id-plus"
+        attributes["aria-label"] = "$label, un niveau de plus"
+        unsafe { +PLUS_ICON }
+    }
+}
 
-// Opens without JavaScript
+// Opens without JavaScript, its chevron turned by the base styles
 fun FlowContent.empDisclosure(label: String, card: Boolean = false, id: String? = null, cssClass: String? = null, block: DETAILS.() -> Unit) =
     details(cssClass) {
         id?.let { this.id = it }
-        summary(classes("emp-disclosure", "emp-disclosure--card".takeIf { card })) { +label }
+        summary(classes("emp-disclosure", "emp-disclosure--card".takeIf { card })) {
+            +label
+            unsafe { +CHEVRON_ICON }
+        }
         block()
     }
 
 // Copies the value of the element of the given id. Without a target, the button submits its form, posted for the text
-// to copy: the server answers it as plain text to the script, as a page showing it to copy by hand otherwise.
-// The pages using it add copyScript()
+// to copy: the server answers it as plain text to the shared script, as a page showing it to copy by hand otherwise
 fun FlowOrPhrasingContent.empCopyButton(
     label: String,
     variant: BtnVariant,
@@ -165,42 +178,11 @@ fun FlowOrPhrasingContent.empCopyButton(
     +label
 }
 
-fun FlowContent.copyScript() = script { unsafe { +COPY_SCRIPT } }
-
-// Without the clipboard, a target is selected to be copied by hand, and a form is posted for real
-private const val COPY_SCRIPT = """
-(function () {
-    function copied(button) {
-        var label = button.textContent;
-        button.textContent = "✓ Copié";
-        setTimeout(function () { button.textContent = label; }, 2000);
-    }
-    document.addEventListener("click", function (event) {
-        var button = event.target.closest("button[data-copy]");
-        if (!button || button.type === "submit") return;
-        var source = document.getElementById(button.dataset.copy);
-        var text = "value" in source ? source.value : source.textContent;
-        var written = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject();
-        written.then(function () { copied(button); }, function () { source.focus(); if (source.select) source.select(); });
-    });
-    document.addEventListener("submit", function (event) {
-        var button = event.submitter;
-        if (!button || !button.hasAttribute("data-copy") || !navigator.clipboard) return;
-        event.preventDefault();
-        var form = event.target;
-        var text = fetch(form.action, { method: "POST", headers: { Accept: "text/plain" } })
-            .then(function (res) { return res.ok ? res.text() : Promise.reject(res.status); });
-        // Safari only writes during the click: the text is handed over as a promise
-        var written = window.ClipboardItem
-            ? navigator.clipboard.write([new ClipboardItem({ "text/plain": text.then(function (t) { return new Blob([t], { type: "text/plain" }); }) })])
-            : text.then(function (t) { return navigator.clipboard.writeText(t); });
-        written.then(function () { copied(button); }, function () { form.submit(); });
-    });
-})();
-"""
-
 private const val MINUS_ICON =
     """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>"""
 
 private const val PLUS_ICON =
     """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>"""
+
+private const val CHEVRON_ICON =
+    """<svg class="emp-disclosure__chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>"""

@@ -5,6 +5,7 @@ import fr.nathanaudvard.emp.database.ExportedPlayerRepository
 import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.ExportVersion
+import fr.nathanaudvard.emp.domain.model.ExportedAlliance
 import fr.nathanaudvard.emp.domain.model.SyncResult
 import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 import kotlin.time.Instant
@@ -46,6 +47,11 @@ class ExportService(
         (available - stored.toSet()).forEach { syncPlayers(it, setOf(allianceTag)) }
         return (available + stored).distinct()
     }
+
+    suspend fun latestAlliance(tag: String): ExportedAlliance? = exportedAlliances.latest(tag)
+
+    suspend fun latestPlayersSync(allianceTag: String): Instant? =
+        exportedPlayers.latestVersion(allianceTag)?.let(ExportVersion::instant)
 
     fun latestOfEachHour(versions: List<String>): List<String> = versions.groupBy { it.take(10) }
         .values

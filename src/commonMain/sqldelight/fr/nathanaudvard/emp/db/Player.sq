@@ -17,8 +17,11 @@ selectByIds:
 SELECT * FROM players WHERE id IN ?;
 
 upsertWageSettlement:
-INSERT INTO players (id, wage_settlement) VALUES (?, ?)
-ON CONFLICT (id) DO UPDATE SET wage_settlement = excluded.wage_settlement;
+INSERT INTO players (id, wage_settlement, wage_settlement_updated_at, wage_settlement_updated_by) VALUES (?, ?, ?, ?)
+ON CONFLICT (id) DO UPDATE SET
+    wage_settlement = excluded.wage_settlement,
+    wage_settlement_updated_at = excluded.wage_settlement_updated_at,
+    wage_settlement_updated_by = excluded.wage_settlement_updated_by;
 
 upsertDebt:
 INSERT INTO players (id, debt) VALUES (?, ?)
@@ -32,3 +35,21 @@ ON CONFLICT (id) DO UPDATE SET is_chief = excluded.is_chief;
 upsertLastSeen:
 INSERT INTO players (id, last_seen_at) VALUES (?, ?)
 ON CONFLICT (id) DO UPDATE SET last_seen_at = excluded.last_seen_at;
+
+touchLevels:
+INSERT INTO players (id, levels_updated_at, levels_updated_by) VALUES (?, ?, ?)
+ON CONFLICT (id) DO UPDATE SET
+    levels_updated_at = excluded.levels_updated_at,
+    levels_updated_by = excluded.levels_updated_by;
+
+insertLevelChange:
+INSERT INTO player_level_changes (player_id, kind, old_level, new_level, changed_by, changed_at)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id;
+
+levelChange:
+SELECT * FROM player_level_changes WHERE id = ?;
+
+upsertLastSeenComputation:
+INSERT INTO players (id, last_seen_computation_id) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET last_seen_computation_id = excluded.last_seen_computation_id;
