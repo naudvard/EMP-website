@@ -34,7 +34,14 @@ class AccessRepository(database: EmpDatabase) {
     }
 
     suspend fun link(tokenHash: String): AccessLink? = withContext(Dispatchers.IO) {
-        queries.linkByTokenHash(tokenHash, ::AccessLink).executeAsOneOrNull()
+        queries.linkByTokenHash(tokenHash) { id, playerId, usedAt ->
+            AccessLink(id, playerId, usedAt?.let(Instant::parse))
+        }.executeAsOneOrNull()
+    }
+
+    // False when another request used it first
+    suspend fun useLinkToken(id: Long, now: Instant): Boolean = withContext(Dispatchers.IO) {
+        queries.useLinkToken(now.toString(), id).value > 0
     }
 
     suspend fun sentLinks(playerIds: Collection<Long>): Map<Long, Instant> = withContext(Dispatchers.IO) {

@@ -8,10 +8,14 @@ activeLink:
 SELECT id FROM access_links WHERE player_id = ? AND revoked_at IS NULL;
 
 linkByTokenHash:
-SELECT id, player_id FROM access_links WHERE token_hash = ? AND revoked_at IS NULL;
+SELECT id, player_id, used_at FROM access_links WHERE token_hash = ? AND revoked_at IS NULL;
 
+-- A new token opens a session again
 renewLinkToken:
-UPDATE access_links SET token_hash = ?, sent_at = ? WHERE id = ?;
+UPDATE access_links SET token_hash = ?, sent_at = ?, used_at = NULL WHERE id = ?;
+
+useLinkToken:
+UPDATE access_links SET used_at = ? WHERE id = ? AND used_at IS NULL;
 
 revokeLinks:
 UPDATE access_links SET revoked_at = :revokedAt WHERE player_id = :playerId AND revoked_at IS NULL;

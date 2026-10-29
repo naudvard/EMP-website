@@ -1,8 +1,6 @@
 package fr.nathanaudvard.emp.web.controllers
 
 import fr.nathanaudvard.emp.config.identify
-import fr.nathanaudvard.emp.config.requireSameOrigin
-import fr.nathanaudvard.emp.config.setSessionCookie
 import fr.nathanaudvard.emp.config.viewer
 import fr.nathanaudvard.emp.domain.model.Identification
 import fr.nathanaudvard.emp.domain.model.SignIn
@@ -21,13 +19,14 @@ import fr.nathanaudvard.emp.web.resources.Me
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.html.respondHtml
-import io.ktor.server.plugins.origin
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.resources.get
 import io.ktor.server.resources.href
 import io.ktor.server.resources.post
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
+import io.ktor.server.sessions.sessions
+import io.ktor.server.sessions.set
 import kotlin.time.Clock
 
 // The pages a browser without a session reaches
@@ -44,7 +43,7 @@ fun Route.accessController(
     }
 
     suspend fun ApplicationCall.signedIn(signIn: SignIn.Opened) {
-        setSessionCookie(signIn.sessionToken)
+        sessions.set(signIn.sessionToken)
         respondRedirect(application.href(Me()))
     }
 
@@ -59,16 +58,17 @@ fun Route.accessController(
     get<Access.Link> { link ->
         when (val signIn = openLink(allianceTag, link.token)) {
             is SignIn.Opened -> call.signedIn(signIn)
+            // The message opened again on the browser it signed in
+            SignIn.UsedLink if call.identify(identify, allianceTag) is Identification.Member ->
+                call.respondRedirect(call.application.href(Me()))
             else -> call.respondAccess(HttpStatusCode.Forbidden, signIn.message(allianceTag))
         }
     }
 
     post<Access.Code> {
-        call.requireSameOrigin()
         val code = call.receiveParameters()[DEVICE_CODE_FIELD].orEmpty().trim()
-        when (val signIn = signInWithCode(allianceTag, code, call.request.origin.remoteHost)) {
+        when (val signIn = signInWithCode(allianceTag, code)) {
             is SignIn.Opened -> call.signedIn(signIn)
-            SignIn.TooManyAttempts -> call.respondAccess(HttpStatusCode.TooManyRequests, code = code, codeError = signIn.message(allianceTag))
             SignIn.Left -> call.respondAccess(HttpStatusCode.Forbidden, signIn.message(allianceTag))
             else -> call.respondAccess(HttpStatusCode.BadRequest, code = code, codeError = signIn.message(allianceTag))
         }

@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.domain.model.Viewer
@@ -31,25 +32,37 @@ class WagesPageTest {
 
     // Giver, recipient and amount of each delivery still to send, read from the giver cards
     private fun deliveryRows(page: String) =
-        Regex("""<article class="emp-card giver[^"]*" data-pseudo="[^"]*">([\s\S]*?)</article>""").findAll(page).flatMap { card ->
-            val giver = Regex("""<span class="player-name giver__pseudo">([^<]*)""").find(card.value)!!.groupValues[1]
-            Regex("""<span class="giver__recipient">→ ([^<]*)(?:<span[^>]*>[^<]*</span>)?</span><span class="amount">([^<]*)</span>""")
-                .findAll(card.value).map { listOf(giver) + it.destructured.toList() }
-        }.toList()
+        Ksoup.parse(page).select("article.giver").flatMap { card ->
+            val giver = card.selectFirst(".giver__pseudo")!!.ownText()
+            card.select(".giver__delivery").map { delivery ->
+                listOf(
+                    giver,
+                    delivery.selectFirst(".giver__recipient")!!.ownText().removePrefix("→ "),
+                    delivery.selectFirst("> .amount")!!.text(),
+                )
+            }
+        }
 
-    private fun leftToSend(page: String) =
-        Regex("""<span class="giver__left text-secondary">reste <strong class="amount">([^<]*)</strong>""")
-            .findAll(page).map { it.groupValues[1] }.toList()
+    private fun leftToSend(page: String) = Ksoup.parse(page).select(".giver__left > .amount").map { it.text() }
+
+    private fun giverPseudos(page: String) = Ksoup.parse(page).select(".giver__pseudo").map { it.ownText() }
 
     // Pseudo, whether they accumulate, balance and debt of each row of the balances
     private fun balanceRows(page: String) =
-        Regex("""<tr(?: class="[^"]*")? data-pseudo="[^"]*"><td>([^<]*?)(?: \(toi\))?(<span class="emp-badge badge-accumulates">cumule</span>)?</td>(?:<td class="number">[^<]*</td>)*<td class="number[^"]*">([^<]*)</td><td class="number[^"]*">(?:<span>)?([^<]*)""")
-            .findAll(page).map { listOf(it.groupValues[1], if (it.groupValues[2].isEmpty()) "" else "cumule", it.groupValues[3], it.groupValues[4]) }
-            .toList()
+        Ksoup.parse(page).select("tr[data-pseudo]").map { row ->
+            val cells = row.select("> td").toList()
+            listOf(
+                cells.first().ownText().removeSuffix(" (toi)"),
+                if (cells.first().selectFirst(".badge-accumulates") != null) "cumule" else "",
+                cells[cells.size - 2].text(),
+                cells.last().text(),
+            )
+        }
 
     private fun tiles(page: String) =
-        Regex("""<div class="emp-tile[^"]*"><span class="caption text-secondary">(.*?)</span><span class="wages-tile__figure">([^<]*)</span>""")
-            .findAll(page).map { it.groupValues[1].replace(Regex("<[^>]*>"), "") to it.groupValues[2] }.toList()
+        Ksoup.parse(page).select(".emp-tile:has(> .wages-tile__figure)").map { tile ->
+            tile.selectFirst("> .caption")!!.text() to tile.selectFirst("> .wages-tile__figure")!!.text()
+        }
 
     // Four players, P1 and P2 sending to P3 and P4, the second computation a day after the first
     private suspend fun AppTestScope.twoComputations(before: suspend () -> Unit = {}) {
@@ -216,7 +229,10 @@ class WagesPageTest {
         syncAndSignIn()
         val page = page()
 
-        assertTrue(Regex("""<header class="emp-header"><div class="emp-header__inner"><a href="/me" class="emp-logo"><svg[^>]*>.*?</svg>EMP</a>""") in page)
+        val logo = Ksoup.parse(page).selectFirst("header.emp-header > .emp-header__inner > a.emp-logo:first-child")!!
+        assertEquals("/me", logo.attr("href"))
+        assertEquals(listOf("svg"), logo.children().map { it.tagName() })
+        assertEquals("EMP", logo.text())
         assertTrue("""<nav class="emp-nav" aria-label="Navigation principale"><a href="/me" class="emp-tab">Moi</a><a href="/wages" class="emp-tab" aria-current="page">Salaires</a><a href="/alliance" class="emp-tab">Alliance</a></nav><span class="emp-header__user">Fourmi · chef</span>""" in page)
         // Migrated to the design system: without the former styles
         assertFalse("<style>" in page)
@@ -229,7 +245,7 @@ class WagesPageTest {
 
         val page = page()
         
-        assertEquals(listOf("P1", "P2"), Regex("""<span class="player-name giver__pseudo">([^<]*)""").findAll(page).map { it.groupValues[1] }.toList().reversed())
+        assertEquals(listOf("P1", "P2"), giverPseudos(page).reversed())
         assertEquals(listOf("42 000", "10 000"), leftToSend(page))
         assertTrue("""role="progressbar" aria-label="Envoyé par P1" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88"""" in page)
         assertTrue("""<li class="giver__delivery giver__delivery--done" data-pseudo="p3"><span class="giver__recipient">→ P3</span><span class="amount">78 000</span><span class="giver__state"><span class="emp-row__done">✓<span class="giver__state-word"> envoyé</span></span></span></li>""" in page)

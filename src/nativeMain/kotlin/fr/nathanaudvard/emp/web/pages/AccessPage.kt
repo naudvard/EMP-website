@@ -115,11 +115,10 @@ private fun leftMessage(allianceTag: String) =
 fun SignIn.message(allianceTag: String): String? = when (this) {
     is SignIn.Opened -> null
     SignIn.InvalidLink -> "Ce lien n'ouvre pas d'accès : il a été remplacé, ou mal copié. Demande un nouveau message « $ACCESS_MESSAGE_SUBJECT » à un chef."
+    SignIn.UsedLink -> "Ce lien a déjà servi : il ne connecte qu'un seul navigateur. Sur l'appareil déjà connecté, affiche un code avec Moi › Connecter un autre appareil, ou demande un nouveau message « $ACCESS_MESSAGE_SUBJECT » à un chef."
     SignIn.Left -> leftMessage(allianceTag)
     SignIn.UnknownCode -> "Code inconnu : vérifie les 6 caractères affichés sur l'autre appareil."
-    SignIn.ExpiredCode -> "Code expiré ou déjà utilisé. Affiche un nouveau code sur l'autre appareil."
-    SignIn.TooManyAttempts -> "Trop d'essais. Réessaie dans quelques minutes."
-}
+    SignIn.ExpiredCode -> "Code expiré ou déjà utilisé. Affiche un nouveau code sur l'autre appareil."}
 
 // "K7Q-4MX": read and typed in two halves
 fun DeviceCode.display() = code.chunked(3).joinToString("-")
@@ -131,6 +130,7 @@ fun accessMessage(link: String) = """
     |Voici ton lien personnel pour le site de l'alliance :
     |$link
     |
-    |Ouvre-le une fois sur ton téléphone : il s'en souviendra pendant un an.
+    |Il ne sert qu'une fois : ouvre-le sur ton téléphone, qui s'en souviendra pendant un an.
+    |Pour un autre appareil, choisis « Connecter un autre appareil » sur ta page.
     |Ensuite, « Forum externe » dans le menu de Fourmizzz t'amène directement sur ta page.
 """.trimMargin()

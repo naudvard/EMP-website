@@ -8,13 +8,6 @@ fun newToken(): String = generateNonceBlocking(64)
 
 fun hashToken(token: String): String = sha256(token.encodeToByteArray()).toHexString()
 
-// Takes the same time wherever the strings differ, so that a token cannot be guessed char by char
-fun secureEquals(a: String, b: String): Boolean {
-    var difference = a.length xor b.length
-    for (i in 0 until minOf(a.length, b.length)) difference = difference or (a[i].code xor b[i].code)
-    return difference == 0
-}
-
 // Without the characters mistaken for one another: 0 and O, 1, I and L
 private const val CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 

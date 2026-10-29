@@ -1,5 +1,7 @@
 package fr.nathanaudvard.emp
 
+import fr.nathanaudvard.emp.config.configureHttp
+import fr.nathanaudvard.emp.config.configureIdentity
 import fr.nathanaudvard.emp.config.configureMonitoring
 import fr.nathanaudvard.emp.config.configureSerialization
 import fr.nathanaudvard.emp.config.configureStatusPages
@@ -26,10 +28,12 @@ fun main(args: Array<String>) {
 suspend fun Application.module() {
     install(Resources)
 
+    configureHttp()
     configureSerialization()
     configureMonitoring()
     configureStatusPages()
     configureDependencies()
+    configureIdentity()
     configureRouting()
     scheduleWages()
 }

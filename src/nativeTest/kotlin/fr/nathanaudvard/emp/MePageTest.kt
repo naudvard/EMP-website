@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.fourmizzz.PlayerRes
@@ -65,12 +66,13 @@ class MePageTest {
 
     // Recipient, amount and state of each delivery of a card
     private fun deliveries(section: String) =
-        Regex("""<td class="me-deliveries__pseudo">(.*?)</td><td class="me-deliveries__amount number"><span class="amount">([^<]*)</span>.*?<td class="me-deliveries__state">(.*?)</td></tr>""")
-            .findAll(section).map { match ->
-                val (pseudo, amount, state) = match.destructured
-                listOf(pseudo.replace(Regex("<[^>]*>"), ""), amount, state.replace(Regex("<[^>]*>"), " ").split(" ").filter { it.isNotBlank() }.joinToString(" "))
-            }
-            .toList()
+        Ksoup.parse(section).select("tr.me-deliveries__row").map { row ->
+            listOf(
+                row.selectFirst(".me-deliveries__pseudo")!!.text(),
+                row.selectFirst(".me-deliveries__amount > .amount")!!.text(),
+                row.selectFirst(".me-deliveries__state")!!.text(),
+            )
+        }
 
     private suspend fun AppTestScope.latestId() = wageHistory().bounds.latestId!!
 

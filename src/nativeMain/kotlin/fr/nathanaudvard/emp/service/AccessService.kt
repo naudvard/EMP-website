@@ -32,6 +32,8 @@ class AccessService(
 
     suspend fun link(token: String): AccessLink? = access.link(hashToken(token))
 
+    suspend fun useLinkToken(link: AccessLink, now: Instant): Boolean = access.useLinkToken(link.id, now)
+
     suspend fun openSession(playerId: Long, accessLinkId: Long, now: Instant): String {
         val token = newToken()
         access.openSession(hashToken(token), playerId, accessLinkId, now, now + SESSION_DURATION)

@@ -260,7 +260,7 @@ private fun FlowContent.accessCard(detail: MemberDetail, now: Instant, view: Mem
             }
             p("small text-secondary") {
                 +"À envoyer en message privé dans Fourmizzz, objet « $ACCESS_MESSAGE_SUBJECT ». Chaque copie renouvelle son lien : "
-                +"seul le dernier message copié ouvre une session, ses appareils déjà connectés le restent."
+                +"seul le dernier message copié ouvre une session, une seule fois, ses appareils déjà connectés le restent."
             }
             if (member.linkSentAt != null) {
                 empDisclosure("Remplacer le lien…", cssClass = "member-access__replace") {

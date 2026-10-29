@@ -2,7 +2,6 @@ package fr.nathanaudvard.emp.domain.usecase
 
 import fr.nathanaudvard.emp.domain.model.SignIn
 import fr.nathanaudvard.emp.service.AccessService
-import fr.nathanaudvard.emp.service.AttemptLimiter
 import fr.nathanaudvard.emp.service.PlayerService
 import fr.nathanaudvard.emp.service.normalizeDeviceCode
 import kotlin.time.Clock
@@ -11,21 +10,12 @@ import kotlin.time.Clock
 class SignInWithCodeUseCase(
     private val access: AccessService,
     private val players: PlayerService,
-    private val limiter: AttemptLimiter,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(allianceTag: String, input: String, client: String): SignIn {
+    suspend operator fun invoke(allianceTag: String, input: String): SignIn {
         val now = clock.now()
-        if (!limiter.allows(client, now)) return SignIn.TooManyAttempts
-        val code = access.deviceCode(normalizeDeviceCode(input))
-        if (code == null) {
-            limiter.fail(client, now)
-            return SignIn.UnknownCode
-        }
-        if (code.usedAt != null || code.expiresAt <= now || !access.useDeviceCode(code, now)) {
-            limiter.fail(client, now)
-            return SignIn.ExpiredCode
-        }
+        val code = access.deviceCode(normalizeDeviceCode(input)) ?: return SignIn.UnknownCode
+        if (code.usedAt != null || code.expiresAt <= now || !access.useDeviceCode(code, now)) return SignIn.ExpiredCode
         if (players.latestMembers(allianceTag).none { it.id == code.playerId }) return SignIn.Left
         return SignIn.Opened(access.openSession(code.playerId, code.accessLinkId, now))
     }

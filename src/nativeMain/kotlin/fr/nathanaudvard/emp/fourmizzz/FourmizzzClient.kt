@@ -10,6 +10,7 @@ import fr.nathanaudvard.emp.domain.model.ExportedPlayer
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -29,6 +30,12 @@ class FourmizzzClient(http: HttpClient, config: FourmizzzConfig) {
         defaultRequest { url(config.baseUrl) }
         install(HttpTimeout) {
             requestTimeoutMillis = config.timeoutMs
+        }
+        // A hiccup of Fourmizzz must not fail a sync or the daily computation. A timeout is not retried: the request
+        // has already waited long enough
+        install(HttpRequestRetry) {
+            retryOnExceptionOrServerErrors(config.retries)
+            delayMillis { retry -> config.retryDelayMs * retry }
         }
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })

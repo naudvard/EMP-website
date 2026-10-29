@@ -27,6 +27,9 @@ data class DatabaseConfig(
 data class FourmizzzConfig(
     val baseUrl: String,
     val timeoutMs: Long,
+    // A request failing with a server error or no answer is made again, after a delay growing with each retry
+    val retries: Int = 2,
+    val retryDelayMs: Long = 1_000,
 )
 
 @Serializable

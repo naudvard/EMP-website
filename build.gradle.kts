@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
 import java.net.URI
@@ -7,7 +8,23 @@ import java.util.zip.ZipInputStream
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.power.assert)
     alias(libs.plugins.sqldelight)
+}
+
+// A failed assertion shows the value of each part of its expression
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+powerAssert {
+    functions = listOf(
+        "kotlin.assert",
+        "kotlin.test.assertTrue",
+        "kotlin.test.assertFalse",
+        "kotlin.test.assertEquals",
+        "kotlin.test.assertNotEquals",
+        "kotlin.test.assertNull",
+        "kotlin.test.assertNotNull",
+        "kotlin.test.assertContains",
+    )
 }
 
 group = "fr.nathanaudvard"
@@ -120,6 +137,11 @@ kotlin {
             implementation(libs.ktor.server.status.pages)
             implementation(libs.ktor.server.resources)
             implementation(libs.ktor.server.html.builder)
+            implementation(libs.ktor.server.sessions)
+            implementation(libs.ktor.server.auth)
+            implementation(libs.ktor.server.forwarded.header)
+            implementation(libs.ktor.server.default.headers)
+            implementation(libs.ktor.server.body.limit)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -139,6 +161,7 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.ktor.server.test.host)
             implementation(libs.ktor.client.resources)
+            implementation(libs.ksoup)
         }
     }
 }

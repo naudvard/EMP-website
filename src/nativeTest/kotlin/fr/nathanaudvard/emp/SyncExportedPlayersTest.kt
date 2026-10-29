@@ -161,6 +161,7 @@ class SyncExportedPlayersTest {
     @Test
     fun `returns 404 when Fourmizzz has no export for the version`() = appTest {
         assertEquals(HttpStatusCode.NotFound, sync(Exports.Players.Sync(version = "202001010000")).status)
+        assertEquals(1, fourmizzz.exportRequests)
     }
 
     @Test
@@ -179,6 +180,18 @@ class SyncExportedPlayersTest {
 
         assertEquals(HttpStatusCode.BadGateway, res.status)
         assertEquals(502, res.body<ErrorResponse>().statusCode)
+        assertEquals(3, fourmizzz.exportRequests)
+    }
+
+    @Test
+    fun `asks Fourmizzz again after a passing failure`() = appTest {
+        fourmizzz.players("202610201200", listOf(fourmi))
+        fourmizzz.failuresLeft = 2
+
+        val res = sync(Exports.Players.Sync(version = "202610201200"))
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        assertEquals(3, fourmizzz.exportRequests)
     }
 
     @Test

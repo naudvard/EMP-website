@@ -10,7 +10,7 @@ enum class AccessNotice { LEFT }
 @Serializable
 @Resource("/access")
 class Access(val notice: AccessNotice? = null) {
-    // The player's personal link, opened once per device
+    // The player's personal link, which signs a single browser in
     @Serializable
     @Resource("{token}")
     class Link(val parent: Access = Access(), val token: String)

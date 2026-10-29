@@ -90,6 +90,11 @@ class FakeFourmizzz {
 
     var failing = false
 
+    // The next export requests to fail, as a passing hiccup
+    var failuresLeft = 0
+
+    var exportRequests = 0
+
     operator fun set(type: ExportType, version: String, body: JsonElement) {
         exports.getValue(type)[version] = body
     }
@@ -109,12 +114,14 @@ class FakeFourmizzz {
                 call.respond(ExportVersionsRes(players = versions(ExportType.PLAYERS), alliances = versions(ExportType.ALLIANCES)))
             }
             get("/api/exports/{type}/") {
+                exportRequests++
                 val type = ExportType.entries.single { it.name.lowercase() == call.parameters["type"] }
                 val requested = call.request.queryParameters["version"] ?: "latest"
                 val body = (if (requested == "latest") versions(type).firstOrNull() else requested)
                     ?.let { exports.getValue(type)[it] }
                 when {
-                    failing -> call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Erreur interne"))
+                    failing || failuresLeft-- > 0 ->
+                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Erreur interne"))
                     requested in rejectedVersions -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Parametre version invalide"))
                     body == null -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "Aucun export pour cette version."))
                     else -> call.respond(body)
@@ -236,6 +243,7 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
                     "app.database.path" to databasePath.toString(),
                     "app.fourmizzz.baseUrl" to fourmizzzUrl,
                     "app.fourmizzz.timeoutMs" to "1000",
+                    "app.fourmizzz.retryDelayMs" to "0",
                     "app.alliance.tag" to "EMP",
                     "app.api.token" to API_TOKEN,
                 )

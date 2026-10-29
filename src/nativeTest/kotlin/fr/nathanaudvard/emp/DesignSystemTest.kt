@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.web.pages.BtnSize
 import fr.nathanaudvard.emp.web.pages.BtnVariant
 import fr.nathanaudvard.emp.web.pages.MessageVariant
@@ -23,14 +24,15 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DesignSystemTest {
-    private val stylesheetLinks = Regex("""<link href="(/assets/[^"]+)" rel="stylesheet">""")
+    private fun stylesheets(page: String) =
+        Ksoup.parse(page).select("link[rel=stylesheet][href^=/assets/]").map { it.attr("href") }
 
     @Test
     fun `pages load the font then the tokens the components and the base styles without any colour of their own`() = appTest {
         syncAndSignIn()
         for (page in listOf(client.get(Me()).bodyAsText(), client.get(Wages()).bodyAsText())) {
             assertTrue("""<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&amp;display=swap" rel="stylesheet">""" in page)
-            val sheets = stylesheetLinks.findAll(page).map { it.groupValues[1] }.toList()
+            val sheets = stylesheets(page)
             assertEquals(listOf("tokens", "bundle", "base"), sheets.map { it.removePrefix("/assets/").substringBefore('-') })
             assertTrue(page.indexOf("data-theme") < page.indexOf(sheets.first()))
             assertFalse(Regex("""#[0-9a-fA-F]{3,8}\b""").containsMatchIn(page), "A colour is written in the page")
@@ -40,7 +42,7 @@ class DesignSystemTest {
     @Test
     fun `stylesheets are cached for good under a name that changes with their content`() = appTest {
         syncAndSignIn()
-        val sheets = stylesheetLinks.findAll(client.get(Me()).bodyAsText()).map { it.groupValues[1] }.toList()
+        val sheets = stylesheets(client.get(Me()).bodyAsText())
         for (sheet in sheets) {
             assertTrue(Regex("""/assets/[a-z]+-[0-9a-f]{10}\.css""").matches(sheet), sheet)
             val res = client.get(sheet)

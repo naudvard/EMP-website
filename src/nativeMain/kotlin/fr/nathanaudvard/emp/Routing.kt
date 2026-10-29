@@ -84,11 +84,11 @@ suspend fun Application.configureRouting() {
         assetsController()
         accessController(identify, openLink, signInWithCode, getChiefs, tag)
         formerPagesController()
-        apiAccess(identify, tag, config.api.token) {
+        apiAccess {
             exportController(syncAlliances, syncPlayers)
             allianceController(computeWagesUseCase)
         }
-        memberAccess(identify, tag) {
+        memberAccess {
             homeController()
             meController(getOverview, saveLevel, confirmLevels, undoLevelChange, declareConvoy, pasteConvoys, deleteConvoy, clock, tag)
             wagesController(getWageHistory, getWagesPanel, getSettings, saveSettings, computeNow, clock, config.publicUrl, tag)

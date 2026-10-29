@@ -44,7 +44,6 @@ import fr.nathanaudvard.emp.domain.usecase.UndoLevelChangeUseCase
 import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
 import fr.nathanaudvard.emp.service.AccessService
 import fr.nathanaudvard.emp.service.AllianceSettingsService
-import fr.nathanaudvard.emp.service.AttemptLimiter
 import fr.nathanaudvard.emp.service.ExportService
 import fr.nathanaudvard.emp.service.PlayerService
 import fr.nathanaudvard.emp.service.WageService
@@ -55,7 +54,6 @@ import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.di.provide
 import io.ktor.server.plugins.di.resolve
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.minutes
 
 // Native has no reflection: every dependency is built explicitly. AutoCloseable ones are closed on shutdown.
 fun Application.configureDependencies() {
@@ -84,8 +82,6 @@ fun Application.configureDependencies() {
         provide(::WageService)
         provide(::AccessService)
         provide(::AllianceSettingsService)
-        // Device codes typed on the access screen
-        provide { AttemptLimiter(perClient = 10, total = 50, window = 10.minutes) }
 
         provide(::SyncExportedAlliancesUseCase)
         provide(::SyncExportedPlayersUseCase)

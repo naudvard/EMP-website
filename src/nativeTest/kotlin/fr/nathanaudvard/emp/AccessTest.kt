@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.config.SESSION_COOKIE
 import fr.nathanaudvard.emp.fourmizzz.PlayerRes
@@ -58,7 +59,7 @@ class AccessTest {
 
     private suspend fun AppTestScope.showDeviceCode(): String {
         val page = client.post(Access.Device()).bodyAsText()
-        return Regex("""<strong class="device-code__value">([^<]+)</strong>""").find(page)!!.groupValues[1]
+        return Ksoup.parse(page).selectFirst(".device-code__value")!!.text()
     }
 
     private suspend fun AppTestScope.typeCode(code: String): HttpResponse =
@@ -125,6 +126,31 @@ class AccessTest {
     }
 
     @Test
+    fun `a link signs a single browser in`() = appTest {
+        syncMembers()
+        signIn("Fourmi")
+        val message = link(copyMessage(abeille.pseudo))
+        val first = open(message)
+        val member = identity.session
+
+        val again = open(message)
+        identity.session = member
+        val sameBrowser = browser.get(message)
+
+        assertEquals(HttpStatusCode.Found, first.status)
+        assertEquals(HttpStatusCode.Forbidden, again.status)
+        assertTrue("Ce lien a déjà servi" in again.bodyAsText())
+        assertTrue(again.setCookie().isEmpty())
+        // Opened again where it signed in, it leads to the member's page
+        assertEquals("/me", sameBrowser.headers[HttpHeaders.Location])
+        assertTrue(sameBrowser.setCookie().none { it.name == SESSION_COOKIE && it.value != member })
+        assertEquals(1L, query("SELECT count(*) FROM sessions WHERE player_id = 124") { it.getLong(0) }.single())
+        // A new message opens a session again
+        signIn("Fourmi")
+        assertEquals(HttpStatusCode.Found, open(link(copyMessage(abeille.pseudo))).status)
+    }
+
+    @Test
     fun `a chief copies the access message of a member which signs them in`() = appTest {
         syncMembers()
         signIn("Fourmi")
@@ -171,7 +197,7 @@ class AccessTest {
         val page = client.post(Alliance.Member.Message(Alliance.Member(pseudo = "abeille"))).bodyAsText()
 
         assertTrue("Message pour abeille, objet « Ton accès EMP »" in page)
-        assertTrue(Regex("""<textarea[^>]*id="access-message"[^>]*>Voici ton lien personnel""").containsMatchIn(page))
+        assertTrue(Ksoup.parse(page).selectFirst("textarea#access-message")!!.text().startsWith("Voici ton lien personnel"))
     }
 
     @Test
@@ -243,22 +269,6 @@ class AccessTest {
     }
 
     @Test
-    fun `posts from another site are refused`() = appTest {
-        syncMembers()
-        signIn("Fourmi")
-
-        val foreign = client.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) {
-            header(HttpHeaders.Origin, "https://evil.example")
-        }
-        val same = client.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) {
-            header(HttpHeaders.Origin, "http://localhost")
-        }
-
-        assertEquals(HttpStatusCode.Forbidden, foreign.status)
-        assertEquals(HttpStatusCode.Found, same.status)
-    }
-
-    @Test
     fun `a device code signs another browser in once`() = appTest {
         syncMembers()
         signIn("abeille", chief = false)
@@ -316,23 +326,16 @@ class AccessTest {
     }
 
     @Test
-    fun `typing codes is limited`() = appTest {
+    fun `the links sent are on the address the proxy was reached at`() = appTest {
         syncMembers()
-        signIn("abeille", chief = false)
-        val code = showDeviceCode()
-        signOut()
+        signIn("Fourmi")
 
-        repeat(10) {
-            val res = typeCode("AAAAAA")
-            assertEquals(HttpStatusCode.BadRequest, res.status)
-            assertTrue("Code inconnu" in res.bodyAsText())
-        }
-        val blocked = typeCode(code)
-        clock.now += 10.minutes + 1.minutes
-        val later = typeCode("AAAAAA")
+        val message = client.post(Alliance.Member.Message(Alliance.Member(pseudo = "abeille"))) {
+            accept(ContentType.Text.Plain)
+            header(HttpHeaders.XForwardedProto, "https")
+            header(HttpHeaders.XForwardedHost, "emp.example")
+        }.bodyAsText()
 
-        assertEquals(HttpStatusCode.TooManyRequests, blocked.status)
-        assertTrue("Trop d'essais." in blocked.bodyAsText())
-        assertEquals(HttpStatusCode.BadRequest, later.status)
+        assertTrue("\nhttps://emp.example/access/" in message, message)
     }
 }

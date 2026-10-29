@@ -1,0 +1,2 @@
+-- When the link's current token opened a session: a token opens only one, renewing it clears this
+ALTER TABLE access_links ADD COLUMN used_at TEXT;

@@ -1,5 +1,6 @@
 package fr.nathanaudvard.emp
 
+import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.domain.model.WageSettlement
 import fr.nathanaudvard.emp.web.pages.DIGIT_GROUP_SEPARATOR
@@ -52,8 +53,7 @@ class AlliancePageTest {
     private suspend fun AppTestScope.storedSettlements() =
         query("SELECT id, wage_settlement FROM players ORDER BY id") { it.getLong(0) to it.getString(1) }
 
-    private fun pseudos(page: String) =
-        Regex("""<tr[^>]* data-pseudo="([^"]*)">""").findAll(page).map { it.groupValues[1] }.toList()
+    private fun pseudos(page: String) = Ksoup.parse(page).select("tr[data-pseudo]").map { it.attr("data-pseudo") }
 
     @Test
     fun `a chief syncs Fourmizzz and comes back to the alliance with the members count`() = appTest {

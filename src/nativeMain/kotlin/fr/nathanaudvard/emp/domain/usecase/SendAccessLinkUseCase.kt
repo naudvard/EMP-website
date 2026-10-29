@@ -6,7 +6,7 @@ import fr.nathanaudvard.emp.service.PlayerService
 import kotlin.time.Clock
 
 // Only the hash of a link's token is kept: each message gets a new token, created with the link when the player has
-// none. The sessions opened before stay open, the previous message no longer opens any.
+// none, which opens a single session. The sessions opened before stay open, the previous message no longer opens any.
 // Null when the player is not in the alliance
 class SendAccessLinkUseCase(
     private val access: AccessService,

@@ -22,16 +22,17 @@ sealed interface SignIn {
 
     data object InvalidLink : SignIn
 
+    data object UsedLink : SignIn
+
     data object Left : SignIn
 
     data object UnknownCode : SignIn
 
     data object ExpiredCode : SignIn
-
-    data object TooManyAttempts : SignIn
 }
 
-data class AccessLink(val id: Long, val playerId: Long)
+// usedAt: when its current token opened a session
+data class AccessLink(val id: Long, val playerId: Long, val usedAt: Instant?)
 
 data class Session(val id: Long, val playerId: Long, val accessLinkId: Long, val expiresAt: Instant)
 
