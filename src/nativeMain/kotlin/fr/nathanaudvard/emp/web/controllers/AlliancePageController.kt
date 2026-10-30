@@ -26,13 +26,7 @@ fun Route.alliancePageController(
     allianceTag: String,
 ) {
     get<Alliance> { page ->
-        val view = AllianceView(
-            filter = MemberFilter.of(page.filter),
-            pseudo = page.pseudo?.trim().orEmpty(),
-            synced = page.synced,
-            settled = page.settled,
-            previous = page.previous,
-        )
+        val view = AllianceView(filter = MemberFilter.of(page.filter), synced = page.synced)
         val overview = getAlliance(allianceTag)
         call.respondHtml { alliancePage(allianceTag, call.viewer, overview, clock.now(), view) }
     }

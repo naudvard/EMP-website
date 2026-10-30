@@ -1,10 +1,13 @@
 package fr.nathanaudvard.emp.web.pages
 
+import io.ktor.htmx.HxSwap
+import io.ktor.htmx.html.hx
 import kotlinx.html.A
 import kotlinx.html.BUTTON
 import kotlinx.html.ButtonType
 import kotlinx.html.DETAILS
 import kotlinx.html.DIV
+import kotlinx.html.FORM
 import kotlinx.html.FlowContent
 import kotlinx.html.FlowOrPhrasingContent
 import kotlinx.html.InputType
@@ -122,7 +125,7 @@ fun FlowContent.empRow(title: String, text: DIV.() -> Unit = {}, actions: DIV.()
 fun FlowOrPhrasingContent.empRowDone(text: String) = span("emp-row__done") { +text }
 
 // Each button submits its form with the value it steps to under name, the field the value typed under fieldName.
-// The field is labelled by its id, the buttons by the label. Focus keys let the shared script find them once replaced
+// The field is labelled by its id, the buttons by the label
 fun FlowContent.empStepper(
     name: String,
     fieldName: String,
@@ -135,7 +138,7 @@ fun FlowContent.empStepper(
     button(type = ButtonType.submit, name = name, classes = "emp-stepper__minus") {
         this.value = (value - 1).toString()
         disabled = value <= 0
-        attributes["data-focus"] = "$id-minus"
+        this.id = "$id-minus"
         attributes["aria-label"] = "$label, un niveau de moins"
         unsafe { +MINUS_ICON }
     }
@@ -149,13 +152,21 @@ fun FlowContent.empStepper(
     button(type = ButtonType.submit, name = name, classes = "emp-stepper__plus") {
         this.value = (value + 1).toString()
         disabled = value >= max
-        attributes["data-focus"] = "$id-plus"
+        this.id = "$id-plus"
         attributes["aria-label"] = "$label, un niveau de plus"
         unsafe { +PLUS_ICON }
     }
 }
 
-// Opens without JavaScript, its chevron turned by the base styles
+// Posted by htmx, which swaps the elements of these ids from the answer. The focused element is given the focus back
+// by its id
+fun FORM.live(vararg ids: String) = attributes.hx {
+    post = this@live.action
+    swap = HxSwap.none
+    selectOob = ids.joinToString(",") { "#$it" }
+}
+
+// A native disclosure, its chevron turned by the base styles
 fun FlowContent.empDisclosure(label: String, card: Boolean = false, id: String? = null, cssClass: String? = null, block: DETAILS.() -> Unit) =
     details(cssClass) {
         id?.let { this.id = it }
@@ -167,7 +178,8 @@ fun FlowContent.empDisclosure(label: String, card: Boolean = false, id: String? 
     }
 
 // Copies the value of the element of the given id. Without a target, the button submits its form, posted for the text
-// to copy: the server answers it as plain text to the shared script, as a page showing it to copy by hand otherwise
+// to copy: the server answers it as plain text to the shared script, as a page showing it to copy by hand when the
+// clipboard cannot be written
 fun FlowOrPhrasingContent.empCopyButton(
     label: String,
     variant: BtnVariant,

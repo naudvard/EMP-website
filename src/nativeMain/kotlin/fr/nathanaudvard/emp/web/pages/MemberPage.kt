@@ -7,6 +7,7 @@ import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageSettlement
 import fr.nathanaudvard.emp.web.resources.Alliance
 import fr.nathanaudvard.emp.web.resources.MemberNotice
+import kotlinx.html.FORM
 import kotlinx.html.FlowContent
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
@@ -40,12 +41,11 @@ enum class MemberSection(val id: String) {
     ACCESS("access"),
 }
 
-// What was just done on the page. Copied is the access message just made, shown to be copied by hand when the script
-// could not copy it
+// What was just done on the page. Copied is the access message just made, shown to be copied by hand when the
+// clipboard could not be written
 class MemberView(
     val notice: MemberNotice? = null,
     val previous: WageSettlement? = null,
-    val paste: PasteForm? = null,
     val copied: String? = null,
 )
 
@@ -64,68 +64,81 @@ fun memberForms(pseudo: String): PlayerForms {
     )
 }
 
+// A member's page worked out once, for the whole page as for the sections a post sends back
+class MemberPage(val viewer: Viewer, val detail: MemberDetail, val now: Instant) {
+    val pseudo = detail.member.member.pseudo
+    val forms = memberForms(pseudo)
+    val mine = detail.latest?.let { Mine(detail.member.member.id, it) }
+    val previous = previousLeft(mine, detail.previous)
+}
+
 // For the chiefs only: everything the member does on their page, done in their name, and their access and role
-fun HTML.memberPage(viewer: Viewer, detail: MemberDetail, now: Instant, view: MemberView = MemberView()) {
-    val member = detail.member
-    val pseudo = member.member.pseudo
-    layout(pseudo, Tab.ALLIANCE, viewer) {
-        val forms = memberForms(pseudo)
-        val mine = detail.latest?.let { Mine(member.member.id, it) }
-        val previous = previousLeft(mine, detail.previous)
+fun HTML.memberPage(page: MemberPage, view: MemberView = MemberView()) =
+    layout(page.pseudo, Tab.ALLIANCE, page.viewer) {
         a(href(Alliance()), classes = "member-back") { +"‹ Membres" }
-        div("member-header") {
-            id = MemberSection.HEADER.id
-            h1("page-title member-header__title") {
-                +pseudo
-                member.member.chainRank?.let { empBadge(BadgeVariant.RANK, it) }
-                if (member.state.chief) empBadge(BadgeVariant.LEADER, "chef")
-            }
-            p("text-secondary") {
-                +listOf(
-                    "TdC ${formatAmount(member.member.field)}${NBSP}cm²",
-                    colonyOf(member, detail.alliance) ?: "pas de colonie",
-                    member.state.debt.takeIf { it > 0 }?.let { "dette ${formatAmount(it)}" } ?: "aucune dette",
-                ).joinToString(" · ")
-            }
-        }
+        memberHeader(page)
         div("member") {
-            div("member__column member__column--main") {
-                previous?.let { (saved, left) -> previousCard(saved, left, now, forms, withPaste = mine?.sends.isNullOrEmpty(), paste = view.paste) }
-                if (mine != null && mine.sends.isNotEmpty()) {
-                    sendCard(mine, now, forms, view.paste)
-                } else {
-                    empCard(cssClass = "me-send") {
-                        h2("card-title") { +"Envois du calcul" }
-                        p("text-secondary") {
-                            +when {
-                                mine == null -> "Pas encore de calcul."
-                                mine.wage == null -> "Pas dans le dernier calcul : il sera dans le prochain."
-                                else -> "Rien à envoyer pour lui dans ce calcul."
-                            }
-                        }
-                    }
-                }
-                val late = previous?.let { mine!!.lateConvoys(it.first) }.orEmpty()
-                if (mine != null && (mine.sends.isNotEmpty() || mine.convoys.isNotEmpty() || late.isNotEmpty())) {
-                    convoysCard(mine, forms, late, previous?.first, now)
-                }
-                p("small text-secondary") { +"Un convoi saisi par un chef garde le nom du chef dans l'historique." }
-            }
+            memberSendingColumn(page)
             div("member__column member__column--side") {
-                settlementCard(detail, now, view)
-                levelsCard(
-                    member.state.levels,
-                    detail.change,
-                    now,
-                    forms,
-                    updatedBy = member.state.levels.updatedBy?.let { detail.alliance.pseudo(it) },
-                )
-                mine?.wage?.let { calculationDetail(mine.computation, it) }
-                accessCard(detail, now, view)
+                settlementCard(page, view)
+                memberLevels(page)
+                page.mine?.wage?.let { calculationDetail(page.mine.computation, it) }
+                accessCard(page, view)
             }
         }
     }
+
+fun FlowContent.memberHeader(page: MemberPage) = div("member-header") {
+    val member = page.detail.member
+    id = MemberSection.HEADER.id
+    h1("page-title member-header__title") {
+        +page.pseudo
+        member.member.chainRank?.let { empBadge(BadgeVariant.RANK, it) }
+        if (member.state.chief) empBadge(BadgeVariant.LEADER, "chef")
+    }
+    p("text-secondary") {
+        +listOf(
+            "TdC ${formatAmount(member.member.field)}${NBSP}cm²",
+            colonyOf(member, page.detail.alliance) ?: "pas de colonie",
+            member.state.debt.takeIf { it > 0 }?.let { "dette ${formatAmount(it)}" } ?: "aucune dette",
+        ).joinToString(" · ")
+    }
 }
+
+// Its own page's sending column, under the same id, for the same forms
+fun FlowContent.memberSendingColumn(page: MemberPage, paste: PasteForm? = null) = div("member__column member__column--main") {
+    id = MeSection.SENDING.id
+    val mine = page.mine
+    val previous = page.previous
+    val now = page.now
+    previous?.let { (saved, left) -> previousCard(saved, left, now, page.forms, withPaste = mine?.sends.isNullOrEmpty(), paste = paste) }
+    if (mine != null && mine.sends.isNotEmpty()) {
+        sendCard(mine, now, page.forms, paste)
+    } else {
+        empCard(cssClass = "me-send") {
+            h2("card-title") { +"Envois du calcul" }
+            p("text-secondary") {
+                +when {
+                    mine == null -> "Pas encore de calcul."
+                    mine.wage == null -> "Pas dans le dernier calcul : il sera dans le prochain."
+                    else -> "Rien à envoyer pour lui dans ce calcul."
+                }
+            }
+        }
+    }
+    val late = previous?.let { mine!!.lateConvoys(it.first) }.orEmpty()
+    if (mine != null && (mine.sends.isNotEmpty() || mine.convoys.isNotEmpty() || late.isNotEmpty())) {
+        convoysCard(mine, page.forms, late, previous?.first, now)
+    }
+    p("small text-secondary") { +"Un convoi saisi par un chef garde le nom du chef dans l'historique." }
+}
+
+fun FlowContent.memberLevels(page: MemberPage) {
+    val levels = page.detail.member.state.levels
+    levelsCard(levels, page.detail.change, page.now, page.forms, updatedBy = levels.updatedBy?.let { page.detail.alliance.pseudo(it) })
+}
+
+private fun FORM.live(vararg sections: MemberSection) = live(*sections.map { it.id }.toTypedArray())
 
 fun HTML.unknownMemberPage(viewer: Viewer, pseudo: String) = layout(pseudo, Tab.ALLIANCE, viewer) {
     a(href(Alliance()), classes = "member-back") { +"‹ Membres" }
@@ -133,8 +146,10 @@ fun HTML.unknownMemberPage(viewer: Viewer, pseudo: String) = layout(pseudo, Tab.
     empMessage(MessageVariant.DANGER) { +"Aucun membre de l'alliance n'a ce pseudo." }
 }
 
-private fun FlowContent.settlementCard(detail: MemberDetail, now: Instant, view: MemberView) =
+fun FlowContent.settlementCard(page: MemberPage, view: MemberView) =
     empCard(cssClass = "member-settlement") {
+        val detail = page.detail
+        val now = page.now
         val member = detail.member
         id = MemberSection.SETTLEMENT.id
         attributes["aria-labelledby"] = "${MemberSection.SETTLEMENT.id}-title"
@@ -147,20 +162,16 @@ private fun FlowContent.settlementCard(detail: MemberDetail, now: Instant, view:
         }
         val action = href(Alliance.Member.Settlement(Alliance.Member(pseudo = member.member.pseudo)))
         form(action = action, method = FormMethod.post, classes = "member-settlement__form") {
-            attributes["data-emp-live"] = MemberSection.SETTLEMENT.id
+            live(MemberSection.SETTLEMENT)
             attributes["data-submit-on-change"] = ""
             settlementChoice(member, compact = false)
-            empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
-                classes += "alliance-settlement__submit"
-                +"Enregistrer"
-            }
         }
         val previous = view.previous
         if (view.notice == MemberNotice.SETTLED && previous != null) {
             empMessage(MessageVariant.SUCCESS, inline = true) {
                 span("alliance-members__saved") { +"✓ ${member.state.settlement.label} au prochain calcul" }
                 form(action = action, method = FormMethod.post, classes = "me-inline-form") {
-                    attributes["data-emp-live"] = MemberSection.SETTLEMENT.id
+                    live(MemberSection.SETTLEMENT)
                     input(InputType.hidden, name = SETTLEMENT_FIELD) { value = previous.name }
                     empBtn(BtnVariant.LINK, BtnSize.COMPACT) {
                         attributes["aria-label"] = "Annuler : ${previous.label.replaceFirstChar { it.lowercase() }}"
@@ -209,11 +220,13 @@ private fun TBODY.figure(label: String, value: String) = tr {
     td("number amount") { +value }
 }
 
-private fun FlowContent.accessCard(detail: MemberDetail, now: Instant, view: MemberView) =
+fun FlowContent.accessCard(page: MemberPage, view: MemberView) =
     empCard(cssClass = "member-access") {
+        val detail = page.detail
+        val now = page.now
         val member = detail.member
         val pseudo = member.member.pseudo
-        val page = Alliance.Member(pseudo = pseudo)
+        val resource = Alliance.Member(pseudo = pseudo)
         id = MemberSection.ACCESS.id
         attributes["aria-labelledby"] = "${MemberSection.ACCESS.id}-title"
         div("me-card-head") {
@@ -255,7 +268,7 @@ private fun FlowContent.accessCard(detail: MemberDetail, now: Instant, view: Mem
             empCopyButton("Copier", BtnVariant.SECONDARY, target = "access-message")
         }
         div("member-access__actions") {
-            form(href(Alliance.Member.Message(page)), method = FormMethod.post) {
+            form(href(Alliance.Member.Message(resource)), method = FormMethod.post) {
                 empCopyButton("Copier le message privé", BtnVariant.PRIMARY)
             }
             p("small text-secondary") {
@@ -264,16 +277,16 @@ private fun FlowContent.accessCard(detail: MemberDetail, now: Instant, view: Mem
             }
             if (member.linkSentAt != null) {
                 empDisclosure("Remplacer le lien…", cssClass = "member-access__replace") {
-                    form(href(Alliance.Member.Replace(page)), method = FormMethod.post) {
+                    form(href(Alliance.Member.Replace(resource)), method = FormMethod.post) {
                         p("small text-secondary") { +"Demande confirmation : l'ancien lien et ses appareils seront déconnectés." }
                         empBtn(BtnVariant.SECONDARY, BtnSize.SMALL) { +"Remplacer le lien de $pseudo" }
                     }
                 }
             }
         }
-        // The script asks for a confirmation as soon as the box is changed; without it, the button confirms
-        form(href(Alliance.Member.Chief(page)), method = FormMethod.post, classes = "member-access__chief") {
-            attributes["data-emp-live"] = "${MemberSection.ACCESS.id} ${MemberSection.HEADER.id}"
+        // The script asks for a confirmation as soon as the box is changed
+        form(href(Alliance.Member.Chief(resource)), method = FormMethod.post, classes = "member-access__chief") {
+            live(MemberSection.ACCESS, MemberSection.HEADER)
             attributes["data-submit-on-change"] = ""
             attributes["data-confirm"] =
                 if (member.state.chief) "Retirer le rôle de chef à $pseudo ?" else "Nommer $pseudo chef de l'alliance ?"
@@ -288,10 +301,6 @@ private fun FlowContent.accessCard(detail: MemberDetail, now: Instant, view: Mem
                     checked = member.state.chief
                     attributes["role"] = "switch"
                 }
-            }
-            empBtn(BtnVariant.SECONDARY, BtnSize.SMALL) {
-                classes += "alliance-settlement__submit"
-                +"Confirmer le rôle"
             }
         }
     }

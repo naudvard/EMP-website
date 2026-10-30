@@ -6,19 +6,20 @@ import fr.nathanaudvard.emp.domain.model.Identification
 import fr.nathanaudvard.emp.domain.model.SignIn
 import fr.nathanaudvard.emp.domain.usecase.CreateDeviceCodeUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetChiefsUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetMyOverviewUseCase
 import fr.nathanaudvard.emp.domain.usecase.IdentifyViewerUseCase
 import fr.nathanaudvard.emp.domain.usecase.OpenAccessLinkUseCase
 import fr.nathanaudvard.emp.domain.usecase.SignInWithCodeUseCase
 import fr.nathanaudvard.emp.web.pages.DEVICE_CODE_FIELD
 import fr.nathanaudvard.emp.web.pages.accessPage
-import fr.nathanaudvard.emp.web.pages.mePage
+import fr.nathanaudvard.emp.web.pages.deviceBlock
 import fr.nathanaudvard.emp.web.pages.message
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.Me
+import fr.nathanaudvard.emp.web.respondSections
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.html.respondHtml
+import io.ktor.server.htmx.hx
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.resources.get
 import io.ktor.server.resources.href
@@ -27,7 +28,6 @@ import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.sessions.sessions
 import io.ktor.server.sessions.set
-import kotlin.time.Clock
 
 // The pages a browser without a session reaches
 fun Route.accessController(
@@ -76,11 +76,11 @@ fun Route.accessController(
 }
 
 // The code is shown on the viewer's page, in place of the button
-fun Route.deviceController(createDeviceCode: CreateDeviceCodeUseCase, getOverview: GetMyOverviewUseCase, clock: Clock, allianceTag: String) {
-    post<Access.Device> {
-        val viewer = call.viewer
-        val code = createDeviceCode(viewer)
-        val overview = getOverview(allianceTag, viewer.playerId)
-        call.respondHtml { mePage(viewer, overview, clock.now(), device = code) }
+fun Route.deviceController(createDeviceCode: CreateDeviceCodeUseCase) {
+    hx {
+        post<Access.Device> {
+            val code = createDeviceCode(call.viewer)
+            call.respondSections { deviceBlock(code) }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package fr.nathanaudvard.emp
 
 import app.cash.sqldelight.db.QueryResult
+import com.fleeksoft.ksoup.Ksoup
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.api.dto.SyncRequest
@@ -27,6 +28,8 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientCon
 import io.ktor.client.plugins.resources.Resources
 import io.ktor.client.plugins.resources.get
 import io.ktor.client.plugins.resources.post
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
@@ -273,3 +276,9 @@ fun appTest(fourmizzzUrl: String = FOURMIZZZ_URL, block: suspend AppTestScope.()
         }
     }
 }
+
+// As htmx posts a form: the answer holds the sections it swaps
+fun HttpRequestBuilder.htmx() = header("HX-Request", "true")
+
+// The ids of the sections an answer to htmx holds, in order
+fun sectionIds(answer: String) = Ksoup.parse(answer).body().child(0).children().map { it.id() }

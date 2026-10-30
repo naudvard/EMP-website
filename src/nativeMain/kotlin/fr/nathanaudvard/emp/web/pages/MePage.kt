@@ -21,6 +21,7 @@ import fr.nathanaudvard.emp.web.resources.Me
 import fr.nathanaudvard.emp.web.resources.Wages
 import kotlinx.html.ButtonType
 import kotlinx.html.DIV
+import kotlinx.html.FORM
 import kotlinx.html.FlowContent
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
@@ -60,8 +61,9 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-// The sections the posts of the page come back to, and the shared script replaces
+// The sections the posts of the page change, which htmx swaps. Sending is the main column, whose cards come and go
 enum class MeSection(val id: String) {
+    SENDING("sending"),
     PREVIOUS("previous"),
     SEND("send"),
     RECEIVE("receive"),
@@ -78,7 +80,6 @@ object MeFields {
     const val TYPED = "typed"
     const val MESSAGE = "message"
     const val ID = "id"
-    const val BACK = "back"
 }
 
 // The text just pasted and what became of it
@@ -112,10 +113,8 @@ const val DETAIL_UNAVAILABLE = "Détail indisponible pour ce calcul."
 // Levels not saved nor confirmed for this long are asked about
 val LEVELS_STALE_AFTER = 7.days
 
-private val PASTED_SECTIONS = listOf(MeSection.SEND, MeSection.PREVIOUS, MeSection.CONVOYS)
-
 // What the player has to do first: send, receive, or nothing, for a reason
-private enum class State { SEND, RECEIVE, ACCUMULATE, NOTHING, NO_COMPUTATION, NEW_MEMBER }
+internal enum class State { SEND, RECEIVE, ACCUMULATE, NOTHING, NO_COMPUTATION, NEW_MEMBER }
 
 // The latest computation from a player's side. On their page, only the viewer's wage and levels are ever shown
 class Mine(val playerId: Long, val saved: SavedComputation) {
@@ -141,69 +140,90 @@ fun previousLeft(mine: Mine?, previous: SavedComputation?): Pair<SavedComputatio
         }
     }?.takeIf { it.second.isNotEmpty() }
 
-// Mobile: one column, what to do first. Desktop: sending and convoys on the left, levels and calculation on the right
-fun HTML.mePage(viewer: Viewer, overview: MyOverview, now: Instant, paste: PasteForm? = null, device: DeviceCode? = null) =
-    layout(viewer.pseudo, Tab.ME, viewer) {
-        val mine = overview.latest?.let { Mine(viewer.playerId, it) }
-        val previous = previousLeft(mine, overview.previous)
-        val late = previous?.let { mine!!.lateConvoys(it.first) }.orEmpty()
-        val state = when {
-            mine == null -> State.NO_COMPUTATION
-            mine.wage == null -> State.NEW_MEMBER
-            mine.sends.isNotEmpty() -> State.SEND
-            mine.receives.isNotEmpty() -> State.RECEIVE
-            mine.wage.netWage < 0 && mine.wage.settledAmount == 0L -> State.ACCUMULATE
-            else -> State.NOTHING
-        }
-        // The game's messages are pasted in the first sending card
-        val pasteIn = when {
-            state == State.SEND -> MeSection.SEND
-            previous != null -> MeSection.PREVIOUS
-            else -> null
-        }
+// The viewer's page worked out once, for the whole page as for the sections a post sends back
+class MyPage(val viewer: Viewer, val overview: MyOverview, val now: Instant) {
+    val mine = overview.latest?.let { Mine(viewer.playerId, it) }
+    val previous = previousLeft(mine, overview.previous)
+    val late = previous?.let { mine!!.lateConvoys(it.first) }.orEmpty()
+    internal val state = when {
+        mine == null -> State.NO_COMPUTATION
+        mine.wage == null -> State.NEW_MEMBER
+        mine.sends.isNotEmpty() -> State.SEND
+        mine.receives.isNotEmpty() -> State.RECEIVE
+        mine.wage.netWage < 0 && mine.wage.settledAmount == 0L -> State.ACCUMULATE
+        else -> State.NOTHING
+    }
 
+    // The game's messages are pasted in the first sending card
+    val pasteIn = when {
+        state == State.SEND -> MeSection.SEND
+        previous != null -> MeSection.PREVIOUS
+        else -> null
+    }
+}
+
+// Mobile: one column, what to do first. Desktop: sending and convoys on the left, levels and calculation on the right
+fun HTML.mePage(page: MyPage) =
+    layout(page.viewer.pseudo, Tab.ME, page.viewer) {
+        val mine = page.mine
+        val overview = page.overview
         div("me-header") {
             div("me-header__title") {
-                h1("page-title") { +viewer.pseudo }
+                h1("page-title") { +page.viewer.pseudo }
                 // Without a computation, the state card says when the first one comes
                 if (mine != null) {
                     p("me-header__meta text-secondary") {
                         +"Calcul du ${formatDateTime(mine.computation.computedAt)}"
                         if (overview.newComputation && mine.wage != null) empBadge(BadgeVariant.SOLID, "nouveau")
-                        span { +"· prochain ${formatDue(overview.nextComputation, now)}" }
+                        span { +"· prochain ${formatDue(overview.nextComputation, page.now)}" }
                     }
                 }
             }
-            levelsShortcut(overview, now)
+            levelsShortcut(overview, page.now)
         }
         div("me") {
-            div("me__column me__column--main") {
-                previous?.let { (saved, left) ->
-                    previousCard(saved, left, now, MY_FORMS, pasteIn == MeSection.PREVIOUS, paste.takeIf { pasteIn == MeSection.PREVIOUS })
-                }
-                when (state) {
-                    State.SEND -> sendCard(mine!!, now, MY_FORMS, paste, deadline = overview.nextComputation)
-                    State.RECEIVE -> receiveCard(mine!!)
-                    else -> stateCard(state, viewer, mine, overview.nextComputation, now)
-                }
-                if (mine != null && (mine.sends.isNotEmpty() || mine.convoys.isNotEmpty() || late.isNotEmpty())) {
-                    convoysCard(mine, MY_FORMS, late, previous?.first, now)
-                }
-            }
+            sendingColumn(page)
             div("me__column me__column--side") {
-                levelsCard(overview.levels, overview.change, now, MY_FORMS, first = state != State.SEND && state != State.RECEIVE)
+                myLevelsCard(page)
                 mine?.wage?.let { calculationCard(mine, it) }
-                deviceBlock(device)
+                deviceBlock(null)
             }
         }
     }
 
+fun FlowContent.sendingColumn(page: MyPage, paste: PasteForm? = null) = div("me__column me__column--main") {
+    id = MeSection.SENDING.id
+    val mine = page.mine
+    val now = page.now
+    page.previous?.let { (saved, left) ->
+        val pasteHere = page.pasteIn == MeSection.PREVIOUS
+        previousCard(saved, left, now, MY_FORMS, pasteHere, paste.takeIf { pasteHere })
+    }
+    when (page.state) {
+        State.SEND -> sendCard(mine!!, now, MY_FORMS, paste, deadline = page.overview.nextComputation)
+        State.RECEIVE -> receiveCard(mine!!)
+        else -> stateCard(page.state, page.viewer, mine, page.overview.nextComputation, now)
+    }
+    if (mine != null && (mine.sends.isNotEmpty() || mine.convoys.isNotEmpty() || page.late.isNotEmpty())) {
+        convoysCard(mine, MY_FORMS, page.late, page.previous?.first, now)
+    }
+}
+
+// The levels card and its shortcut at the top of the page, which the level posts change together
+fun FlowContent.myLevels(page: MyPage) {
+    levelsShortcut(page.overview, page.now)
+    myLevelsCard(page)
+}
+
+private fun FlowContent.myLevelsCard(page: MyPage) =
+    levelsCard(page.overview.levels, page.overview.change, page.now, MY_FORMS, first = page.state != State.SEND && page.state != State.RECEIVE)
+
 // The code shown in place of the button, for the other device to type on the access screen
-private fun FlowContent.deviceBlock(code: DeviceCode?) = div("me-device") {
+fun FlowContent.deviceBlock(code: DeviceCode?) = div("me-device") {
     id = MeSection.DEVICE.id
     if (code == null) {
         form(action = href(Access.Device()), method = FormMethod.post) {
-            attributes["data-emp-live"] = MeSection.DEVICE.id
+            live(MeSection.DEVICE)
             empBtn(BtnVariant.LINK) { +"Connecter un autre appareil" }
         }
         return@div
@@ -352,10 +372,10 @@ private fun TBODY.deliveryRow(line: Line, computationId: Long, now: Instant, for
             val focus = "${back.id}-${computationId}-${line.delivery.toPlayerId}"
             if (!done) {
                 form(action = forms.declare(computationId, line.delivery.toPlayerId), method = FormMethod.post) {
-                    attributes["data-emp-live"] = live(back, MeSection.CONVOYS)
+                    live(MeSection.SENDING)
                     val label = if (forms.own) "J'ai envoyé" else "Marquer envoyé"
                     empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
-                        attributes["data-focus"] = focus
+                        id = focus
                         attributes["aria-label"] = "$label à ${line.pseudo}" + previous?.let { ", $it" }.orEmpty()
                         +label
                     }
@@ -371,9 +391,9 @@ private fun TBODY.deliveryRow(line: Line, computationId: Long, now: Instant, for
             }
             // A declared convoy is undone at once; a pasted one is removed from the convoys
             line.latest?.takeIf { it.source == ConvoySource.DECLARED }?.let { convoy ->
-                deleteForm(listOf(convoy.id), back, live(back, MeSection.CONVOYS), forms) {
+                deleteForm(listOf(convoy.id), forms) {
                     empBtn(BtnVariant.LINK, BtnSize.COMPACT) {
-                        attributes["data-focus"] = focus
+                        id = focus
                         attributes["aria-label"] = "Annuler l'envoi à ${line.pseudo}"
                         +"Annuler"
                     }
@@ -383,22 +403,21 @@ private fun TBODY.deliveryRow(line: Line, computationId: Long, now: Instant, for
     }
 }
 
-private fun live(vararg sections: MeSection) = sections.joinToString(" ") { it.id }
+private fun FORM.live(vararg sections: MeSection) = live(*sections.map { it.id }.toTypedArray())
 
-private fun FlowContent.deleteForm(ids: List<Long>, back: MeSection, live: String, forms: PlayerForms, button: FlowContent.() -> Unit) =
+private fun FlowContent.deleteForm(ids: List<Long>, forms: PlayerForms, button: FlowContent.() -> Unit) =
     form(action = forms.deleteConvoys, method = FormMethod.post, classes = "me-inline-form") {
-        attributes["data-emp-live"] = live
+        live(MeSection.SENDING)
         ids.forEach { input(InputType.hidden, name = MeFields.ID) { value = it.toString() } }
-        input(InputType.hidden, name = MeFields.BACK) { value = back.id }
         button()
     }
 
-// The clipboard button on a phone, the field on a desktop or when the clipboard cannot be read, a submit button
-// without JavaScript. The messages live outside the form, which holds none
+// The clipboard button on a phone, the field on a desktop or when the clipboard cannot be read. The messages live
+// outside the form, which holds none
 private fun FlowContent.pasteBlock(section: MeSection, paste: PasteForm?, now: Instant, forms: PlayerForms) = div("paste-block") {
     paste?.let { pasteMessages(it, section, now, forms) }
     form(action = forms.convoys, method = FormMethod.post, classes = if (paste?.result?.nothing == true) "paste paste--manual" else "paste") {
-        attributes["data-emp-live"] = live(*PASTED_SECTIONS.toTypedArray())
+        live(MeSection.SENDING)
         empBtn(BtnVariant.SECONDARY, type = ButtonType.button) {
             this.classes += "paste__clipboard"
             attributes["data-paste"] = ""
@@ -427,10 +446,6 @@ private fun FlowContent.pasteBlock(section: MeSection, paste: PasteForm?, now: I
             p("small text-secondary") {
                 +"Enregistré dès le collage. Toute la page des convois peut être collée : seuls les convois de matériaux prévus sont gardés, les doublons ignorés."
             }
-            empBtn(BtnVariant.PRIMARY, BtnSize.COMPACT) {
-                this.classes += "paste__submit"
-                +"Enregistrer"
-            }
         }
     }
 }
@@ -451,7 +466,7 @@ private fun FlowContent.pasteMessages(paste: PasteForm, section: MeSection, now:
             result.recorded.forEach { convoy ->
                 span { +("${formatAmount(convoy.amount)} → ${convoy.recipient}" + convoy.arrivesAt?.let { ", ${formatArrival(it)}" }.orEmpty()) }
             }
-            deleteForm(result.recorded.map { it.id }, section, live(*PASTED_SECTIONS.toTypedArray()), forms) {
+            deleteForm(result.recorded.map { it.id }, forms) {
                 empBtn(BtnVariant.LINK, BtnSize.COMPACT) { +(if (count > 1) "Annuler ces $count convois" else "Annuler ce convoi") }
             }
         }
@@ -607,7 +622,7 @@ fun FlowContent.levelsCard(
         empMessage(MessageVariant.WARNING, inline = true) {
             span("me-levels__question") { +"Toujours à jour ?" }
             form(action = forms.confirmLevels, method = FormMethod.post, classes = "me-inline-form") {
-                attributes["data-emp-live"] = live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
+                live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
                 empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
                     id = "levels-confirm"
                     +"Oui, rien n'a changé"
@@ -623,7 +638,7 @@ fun FlowContent.levelsCard(
                 method = FormMethod.post,
                 classes = if (undoable?.kind == kind) "emp-level emp-level--changed" else "emp-level",
             ) {
-                attributes["data-emp-live"] = live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
+                live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
                 // The default button: a typed level is sent alone when Enter is pressed
                 button(type = ButtonType.submit, classes = "visually-hidden") {
                     attributes["tabindex"] = "-1"
@@ -642,7 +657,7 @@ fun FlowContent.levelsCard(
         empMessage(MessageVariant.SUCCESS, inline = true) {
             span("me-levels__saved") { +"✓ ${it.kind.label} ${it.from} → ${it.to} enregistré" }
             form(action = forms.undoLevelChange(it.id), method = FormMethod.post, classes = "me-inline-form") {
-                attributes["data-emp-live"] = live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
+                live(MeSection.LEVELS, MeSection.LEVELS_SHORTCUT)
                 empBtn(BtnVariant.LINK, BtnSize.COMPACT) {
                     attributes["aria-label"] = "Annuler : remettre ${it.kind.label} au niveau ${it.from}"
                     +"Annuler"
@@ -857,9 +872,9 @@ fun FlowContent.convoysCard(
                         if (computation !== mine.computation) previousName?.let { +" · $it" }
                     }
                 }
-                deleteForm(listOf(convoy.id), MeSection.CONVOYS, live(*PASTED_SECTIONS.toTypedArray()), forms) {
+                deleteForm(listOf(convoy.id), forms) {
                     empBtn(BtnVariant.SUBTLE, BtnSize.COMPACT) {
-                        attributes["data-focus"] = "convoy-${convoy.id}"
+                        id = "convoy-${convoy.id}"
                         attributes["aria-label"] = "Supprimer le convoi de ${formatAmount(convoy.amount)} à $recipient"
                         +"Supprimer"
                     }

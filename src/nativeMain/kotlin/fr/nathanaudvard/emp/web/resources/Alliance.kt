@@ -1,34 +1,20 @@
 package fr.nathanaudvard.emp.web.resources
 
-import fr.nathanaudvard.emp.domain.model.WageSettlement
 import io.ktor.resources.Resource
 import kotlinx.serialization.Serializable
 
-// The members, with a filter (a MemberFilter's key) and a part of a pseudo. Synced is the members count of a sync just
-// made; settled the player whose settlement was just chosen, and previous their former one, for it to be put back
+// The members, with a filter (a MemberFilter's key). Synced is the members count of a sync just made
 @Serializable
 @Resource("/alliance")
-class Alliance(
-    val filter: String? = null,
-    val pseudo: String? = null,
-    val synced: Int? = null,
-    val settled: Long? = null,
-    val previous: WageSettlement? = null,
-) {
+class Alliance(val filter: String? = null, val synced: Int? = null) {
     @Serializable
     @Resource("sync")
     class Sync(val parent: Alliance = Alliance())
 
-    // A member's page, for the chiefs. Change is a change of their levels just saved, notice what was just done
+    // A member's page, for the chiefs. Notice is what was just done
     @Serializable
     @Resource("members/{pseudo}")
-    class Member(
-        val parent: Alliance = Alliance(),
-        val pseudo: String,
-        val change: Long? = null,
-        val notice: MemberNotice? = null,
-        val previous: WageSettlement? = null,
-    ) {
+    class Member(val parent: Alliance = Alliance(), val pseudo: String, val notice: MemberNotice? = null) {
         @Serializable
         @Resource("levels/{kind}")
         class Level(val parent: Member, val kind: String)

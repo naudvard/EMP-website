@@ -142,6 +142,8 @@ kotlin {
             implementation(libs.ktor.server.forwarded.header)
             implementation(libs.ktor.server.default.headers)
             implementation(libs.ktor.server.body.limit)
+            implementation(libs.ktor.server.htmx)
+            implementation(libs.ktor.htmx.html)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

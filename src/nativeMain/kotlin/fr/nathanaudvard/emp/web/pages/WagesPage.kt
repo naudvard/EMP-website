@@ -37,7 +37,6 @@ import kotlinx.html.input
 import kotlinx.html.label
 import kotlinx.html.li
 import kotlinx.html.nav
-import kotlinx.html.noScript
 import kotlinx.html.ol
 import kotlinx.html.p
 import kotlinx.html.section
@@ -66,7 +65,7 @@ object WagesFields {
     const val ID = "id"
 }
 
-// A text to copy shown on the page, when the copy button's script did not run
+// A text to copy shown on the page, when the clipboard could not be written
 class CopiedText(val label: String, val text: String)
 
 // The searched date is the one asked for in the URL, when no computation id is. The viewer comes first in the
@@ -87,7 +86,7 @@ fun HTML.wagesPage(
     val pilot = panel.takeIf { chief }?.let { panel -> now?.let { panel to it } }
     if (history.bounds.latestId == null || computation == null) {
         h1("page-title") { +"Salaires" }
-        pilot?.let { (panel, now) -> panel(panel, history, now, copied) }
+        pilot?.let { (panel, now) -> wagesPanel(panel, history, now, copied) }
         if (history.bounds.latestId == null) {
             empMessage(MessageVariant.INFO) { +"Aucun calcul de salaires pour l'instant." }
         } else {
@@ -109,7 +108,7 @@ fun HTML.wagesPage(
             +" · répartition ${computation.distribution.label}"
         }
     }
-    pilot?.let { (panel, now) -> panel(panel, history, now, copied) }
+    pilot?.let { (panel, now) -> wagesPanel(panel, history, now, copied) }
     val latest = history.selectedId == history.bounds.latestId
     if (!latest) {
         empMessage(MessageVariant.INFO, inline = true) {
@@ -144,7 +143,7 @@ val ComputationFailure.reason
     }
 
 // The settings of the daily computation, the computation on demand, and what needs a chief before the next one
-private fun FlowContent.panel(panel: WagesPanel, history: WageHistory, now: Instant, copied: CopiedText?) =
+fun FlowContent.wagesPanel(panel: WagesPanel, history: WageHistory, now: Instant, copied: CopiedText? = null) =
     empCard(CardVariant.ACCENT, "wages-panel") {
         id = PANEL_SECTION
         attributes["aria-labelledby"] = "$PANEL_SECTION-title"
@@ -192,11 +191,11 @@ private fun FlowContent.copiedText(copied: CopiedText) = div("wages-panel__copie
     empCopyButton("Copier", BtnVariant.SECONDARY, BtnSize.COMPACT, target = "copied-text")
 }
 
-// Saved as soon as a setting changes, back to the computation shown; the button is there without the script
+// Saved as soon as a setting changes, back to the computation shown
 private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, now: Instant) {
     val settings = panel.settings
     form(href(Wages.Settings()), method = FormMethod.post, classes = "wages-panel__settings") {
-        attributes["data-emp-live"] = PANEL_SECTION
+        live(PANEL_SECTION)
         attributes["data-submit-on-change"] = ""
         history.selectedId?.takeIf { it != history.bounds.latestId }?.let { id ->
             input(InputType.hidden, name = WagesFields.ID) { value = id.toString() }
@@ -235,10 +234,6 @@ private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, no
                     }
                 }
             }
-        }
-        empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
-            this.classes += "wages-panel__save"
-            +"Enregistrer"
         }
         // From a desktop width, on the line of the settings
         div("wages-panel__wide") { compute() }
@@ -421,9 +416,7 @@ private fun FlowContent.tile(label: String, wide: String? = null, cssClass: Stri
         figure()
     }
 
-// Hidden until the script shows it: the rest of the page needs no JavaScript
 private fun FlowContent.filter() = div("wages-filter") {
-    attributes["hidden"] = "hidden"
     label("visually-hidden") {
         htmlFor = "filter"
         +"Filtrer par pseudo"
@@ -606,7 +599,7 @@ private fun TR.column(title: String, number: Boolean = false) = th(classes = if 
     +title
 }
 
-// Submitted as soon as it is ticked, with a button for when scripts do not run
+// Submitted as soon as it is ticked
 private fun DIV.detailToggle(computationId: Long?, detail: Boolean) {
     form(action = "${href(Wages())}#balances", method = FormMethod.get, classes = "balances__toggle") {
         attributes["data-submit-on-change"] = ""
@@ -619,7 +612,6 @@ private fun DIV.detailToggle(computationId: Long?, detail: Boolean) {
             +"Détail complet"
             empBadge(BadgeVariant.LEADER, "Chef")
         }
-        noScript { empBtn(BtnVariant.SUBTLE, BtnSize.SMALL) { +"Afficher" } }
     }
 }
 

@@ -1,7 +1,7 @@
 package fr.nathanaudvard.emp.web.pages
 
 import fr.nathanaudvard.emp.domain.model.Viewer
-import fr.nathanaudvard.emp.web.assets.script as sharedScript
+import fr.nathanaudvard.emp.web.assets.scripts
 import fr.nathanaudvard.emp.web.assets.stylesheets
 import fr.nathanaudvard.emp.web.resources.Alliance
 import fr.nathanaudvard.emp.web.resources.Assets
@@ -20,6 +20,7 @@ import kotlinx.html.link
 import kotlinx.html.main
 import kotlinx.html.meta
 import kotlinx.html.nav
+import kotlinx.html.noScript
 import kotlinx.html.script
 import kotlinx.html.span
 import kotlinx.html.title
@@ -38,7 +39,7 @@ private val Tab.href
         Tab.ALLIANCE -> href(Alliance())
     }
 
-// Without navigation, the banner has no tabs. The viewer is named at its right from a desktop width
+// Without JavaScript, the page only asks for it. Without navigation, the banner has no tabs. The viewer is named at its right from a desktop width
 fun HTML.layout(
     title: String,
     tab: Tab?,
@@ -57,9 +58,15 @@ fun HTML.layout(
         link(rel = "preconnect", href = "https://fonts.gstatic.com") { attributes["crossorigin"] = "" }
         link(rel = "stylesheet", href = FONT_URL)
         stylesheets.forEach { link(rel = "stylesheet", href = href(Assets(it.name))) }
-        script(src = href(Assets(sharedScript.name))) { defer = true }
+        meta(name = "htmx-config", content = HTMX_CONFIG)
+        scripts.forEach { script(src = href(Assets(it.name))) { defer = true } }
     }
     body {
+        noScript {
+            main("emp-page") {
+                empMessage(MessageVariant.WARNING) { +"Active JavaScript pour utiliser le site de l'alliance." }
+            }
+        }
         header("emp-header") {
             div("emp-header__inner") {
                 a(href(Me()), classes = "emp-logo") {
@@ -90,6 +97,11 @@ internal val resourcesFormat = ResourcesFormat()
 
 inline fun <reified T : Any> href(resource: T): String = io.ktor.resources.href(resourcesFormat, resource)
 
+// A refused paste comes back as a 400 that still shows why. No style is added to the page: it shows no indicator
+private const val HTMX_CONFIG =
+    """{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"400","swap":true},""" +
+        """{"code":"[45]..","swap":false,"error":true}],"includeIndicatorStyles":false}"""
+
 private const val FONT_URL = "https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap"
 
 private const val ANT_ICON =
@@ -99,7 +111,7 @@ private const val THEME_SCRIPT = """
 (function () {
     var dark = matchMedia("(prefers-color-scheme: dark)");
     function apply() { document.documentElement.setAttribute("data-theme", dark.matches ? "dark" : "light"); }
-    // Styles what only works with the shared script, which comes deferred
+    // Without it, the page is hidden: the site needs its scripts
     document.documentElement.classList.add("js");
     apply();
     dark.addEventListener("change", apply);

@@ -77,19 +77,18 @@ class MePageTest {
     private suspend fun AppTestScope.latestId() = wageHistory().bounds.latestId!!
 
     private suspend fun AppTestScope.declare(computationId: Long, to: Long): HttpResponse =
-        client.submitForm("/me/computations/$computationId/deliveries/$to/sent", parameters { })
+        client.submitForm("/me/computations/$computationId/deliveries/$to/sent", parameters { }) { htmx() }
 
     private suspend fun AppTestScope.paste(text: String): HttpResponse =
-        client.submitForm("/me/convoys", parameters { append("message", text) })
+        client.submitForm("/me/convoys", parameters { append("message", text) }) { htmx() }
 
-    private suspend fun AppTestScope.deleteConvoys(ids: List<Long>, back: String = "convoys"): HttpResponse =
+    private suspend fun AppTestScope.deleteConvoys(ids: List<Long>): HttpResponse =
         client.submitForm("/me/convoys/delete", parameters {
             ids.forEach { append("id", it.toString()) }
-            append("back", back)
-        })
+        }) { htmx() }
 
     private suspend fun AppTestScope.level(kind: String, vararg values: Pair<String, String>): HttpResponse =
-        client.submitForm("/me/levels/$kind", parameters { values.forEach { (name, value) -> append(name, value) } })
+        client.submitForm("/me/levels/$kind", parameters { values.forEach { (name, value) -> append(name, value) } }) { htmx() }
 
     private suspend fun AppTestScope.convoys() =
         query("SELECT from_player_id, to_player_id, amount, source, declared_by, arrives_at, return_at FROM convoys ORDER BY id") { cursor ->
@@ -126,8 +125,7 @@ class MePageTest {
 
         val res = declare(id, 3)
 
-        assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/me#send", res.headers[HttpHeaders.Location])
+        assertEquals(HttpStatusCode.OK, res.status)
         assertEquals(listOf(listOf(1L, 3L, 78_000L, "declared", 1L, null, null)), convoys())
         val after = section(page(), "send")
         assertEquals(listOf(listOf("→ P3", "78 000", "✓ 78 000 envoyé à l'instant Annuler"), listOf("→ P4", "12 000", "J'ai envoyé")), deliveries(after))
@@ -137,8 +135,7 @@ class MePageTest {
         assertEquals(1, convoys().size)
 
         val convoyId = query("SELECT id FROM convoys") { it.getLong(0)!! }.single()
-        val undone = deleteConvoys(listOf(convoyId), back = "send")
-        assertEquals("/me#send", undone.headers[HttpHeaders.Location])
+        deleteConvoys(listOf(convoyId))
         assertTrue(convoys().isEmpty())
 
         declare(id, 3)
@@ -273,10 +270,8 @@ class MePageTest {
 
         val res = level("INCUBATOR", "level" to "1")
 
-        assertEquals(HttpStatusCode.Found, res.status)
-        val location = res.headers[HttpHeaders.Location]!!
-        assertTrue(Regex("""/me\?change=\d+#levels""").matches(location), location)
-        val page = flat(client.get(location).bodyAsText())
+        assertEquals(HttpStatusCode.OK, res.status)
+        val page = flat(res.bodyAsText())
         assertTrue("✓ Couveuse 0 → 1 enregistré" in page)
         assertTrue("""<form action="/me/levels/INCUBATOR" method="post" class="emp-level emp-level--changed"""" in page)
         assertTrue("mis à jour à l'instant" in page)
@@ -294,8 +289,7 @@ class MePageTest {
         )
 
         val change = query("SELECT max(id) FROM player_level_changes") { it.getLong(0)!! }.single()
-        val undone = client.submitForm("/me/levels/changes/$change/undo", parameters { })
-        assertEquals("/me#levels", undone.headers[HttpHeaders.Location])
+        client.submitForm("/me/levels/changes/$change/undo", parameters { }) { htmx() }
         assertEquals(listOf(1L), query("SELECT incubator_level FROM players WHERE id = 1") { it.getLong(0)!! })
         assertFalse("enregistré</span>" in page())
     }
@@ -310,9 +304,8 @@ class MePageTest {
         assertTrue("mis à jour il y a 8${NBSP}j" in stale)
         assertTrue("Toujours à jour ?" in stale)
 
-        val res = client.submitForm("/me/levels/confirm", parameters { })
+        client.submitForm("/me/levels/confirm", parameters { }) { htmx() }
 
-        assertEquals("/me#levels", res.headers[HttpHeaders.Location])
         val confirmed = section(page(), "levels")
         assertFalse("Toujours à jour ?" in confirmed)
         assertTrue("mis à jour à l'instant" in confirmed)
@@ -436,14 +429,80 @@ class MePageTest {
     }
 
     @Test
-    fun `the shared script is served for good`() = appTest {
-        syncAndSignIn()
-        val src = Regex("""<script src="(/assets/emp-[0-9a-f]{10}\.js)"[^>]* defer""").find(page())!!.groupValues[1]
+    fun `the forms that change a part of the page tell htmx which ones`() = appTest {
+        computeOnce("P1")
 
-        val res = client.get(src)
+        val page = page()
+
+        assertTrue("""<form action="/me/levels/INCUBATOR" method="post" class="emp-level" hx-post="/me/levels/INCUBATOR" hx-swap="none" hx-select-oob="#levels,#levels-shortcut">""" in page)
+        assertTrue("""<form action="/me/computations/${latestId()}/deliveries/3/sent" method="post" hx-post="/me/computations/${latestId()}/deliveries/3/sent" hx-swap="none" hx-select-oob="#sending">""" in page)
+        assertTrue("""<div class="me__column me__column--main" id="sending">""" in page)
+    }
+
+    @Test
+    fun `htmx gets the levels and their shortcut alone`() = appTest {
+        computeOnce("P1")
+
+        val res = client.submitForm("/me/levels/INCUBATOR", parameters { append("level", "1") }) { htmx() }
 
         assertEquals(HttpStatusCode.OK, res.status)
-        assertEquals("public, max-age=31536000, immutable", res.headers[HttpHeaders.CacheControl])
-        assertTrue("data-emp-live" in res.bodyAsText())
+        val sections = flat(res.bodyAsText())
+        assertEquals(listOf("levels-shortcut", "levels"), sectionIds(sections))
+        assertTrue("✓ Couveuse 0 → 1 enregistré" in sections)
+        assertTrue("""<span class="me-shortcut__levels">1 · 0 · 0 · 0</span>""" in sections)
+        assertTrue("""<button name="level" type="submit" class="emp-stepper__plus" value="2" id="level-incubator-plus"""" in sections)
+        assertEquals(listOf(1L), query("SELECT incubator_level FROM players WHERE id = 1") { it.getLong(0)!! })
+    }
+
+    @Test
+    fun `htmx gets the sending column after a declaration or a paste`() = appTest {
+        computeOnce("P1")
+
+        val declared = client.submitForm("/me/computations/${latestId()}/deliveries/3/sent", parameters { }) { htmx() }
+
+        assertEquals(HttpStatusCode.OK, declared.status)
+        val column = flat(declared.bodyAsText())
+        assertEquals(listOf("sending"), sectionIds(column))
+        assertEquals(listOf(listOf("→ P3", "78 000", "✓ 78 000 envoyé à l'instant Annuler"), listOf("→ P4", "12 000", "J'ai envoyé")), deliveries(column))
+        assertTrue("""id="convoys"""" in column)
+
+        val refused = client.submitForm("/me/convoys", parameters { append("message", "Rien à livrer") }) { htmx() }
+
+        assertEquals(HttpStatusCode.BadRequest, refused.status)
+        assertEquals(listOf("sending"), sectionIds(refused.bodyAsText()))
+        assertTrue("<strong>Aucun convoi de matériaux dans ce texte</strong>" in refused.bodyAsText())
+    }
+
+    @Test
+    fun `htmx is sent to the access page when the session is gone`() = appTest {
+        syncAndSignIn()
+        signOut()
+
+        val res = client.submitForm("/me/levels/confirm", parameters { }) { htmx() }
+
+        assertEquals(HttpStatusCode.NoContent, res.status)
+        assertEquals("/access", res.headers["HX-Redirect"])
+    }
+
+    @Test
+    fun `the scripts are served for good with htmx first`() = appTest {
+        syncAndSignIn()
+        val sources = Regex("""<script src="(/assets/([a-z]+)-[0-9a-f]{10}\.js)"[^>]* defer""").findAll(page()).toList()
+
+        assertEquals(listOf("htmx", "emp"), sources.map { it.groupValues[2] })
+        val scripts = sources.map { client.get(it.groupValues[1]) }
+        scripts.forEach {
+            assertEquals(HttpStatusCode.OK, it.status)
+            assertEquals("public, max-age=31536000, immutable", it.headers[HttpHeaders.CacheControl])
+        }
+        assertTrue("version:\"2.0.11\"" in scripts[0].bodyAsText())
+        assertTrue("htmx:responseError" in scripts[1].bodyAsText())
+    }
+
+    @Test
+    fun `a browser without JavaScript is only asked to turn it on`() = appTest {
+        syncAndSignIn()
+
+        assertTrue("""<body><noscript><main class="emp-page"><div class="emp-message emp-message--warning" role="status">Active JavaScript pour utiliser le site de l'alliance.</div></main></noscript><header""" in page())
     }
 }

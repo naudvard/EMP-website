@@ -61,7 +61,6 @@ enum class MemberFilter(val key: String, val label: String, val warning: Boolean
 // What the list was asked for, and what was just done: a sync, or a settlement chosen with the one it replaced
 class AllianceView(
     val filter: MemberFilter = MemberFilter.ALL,
-    val pseudo: String = "",
     val synced: Int? = null,
     val syncError: String? = null,
     val settled: Long? = null,
@@ -72,7 +71,6 @@ const val MEMBERS_SECTION = "members"
 
 const val SETTLEMENT_FIELD = "settlement"
 const val FILTER_FIELD = "filter"
-const val PSEUDO_FIELD = "pseudo"
 
 // A member sees ranks, pseudos, colonies, fields and debts only; levels, settlements and accesses are the chiefs'
 fun HTML.alliancePage(allianceTag: String, viewer: Viewer, overview: AllianceOverview, now: Instant, view: AllianceView = AllianceView()) =
@@ -111,7 +109,7 @@ fun HTML.alliancePage(allianceTag: String, viewer: Viewer, overview: AllianceOve
             return@layout
         }
         tiles(overview)
-        members(viewer, overview, now, view)
+        allianceMembers(viewer, overview, now, view)
     }
 
 private fun plural(count: Int, one: String, many: String = "${one}s") = "$count ${if (count > 1) many else one}"
@@ -133,7 +131,7 @@ private fun FlowContent.tile(label: String, figure: DIV.() -> Unit) = div("emp-t
     div("alliance-tile__figure") { figure() }
 }
 
-private fun FlowContent.members(viewer: Viewer, overview: AllianceOverview, now: Instant, view: AllianceView) =
+fun FlowContent.allianceMembers(viewer: Viewer, overview: AllianceOverview, now: Instant, view: AllianceView) =
     section("alliance-members") {
         id = MEMBERS_SECTION
         attributes["aria-labelledby"] = "$MEMBERS_SECTION-title"
@@ -150,7 +148,7 @@ private fun FlowContent.members(viewer: Viewer, overview: AllianceOverview, now:
                     attributes["aria-label"] = "Filtrer les membres"
                     MemberFilter.entries.forEach { entry ->
                         val count = overview.members.count { entry.matches(it, now) }
-                        val link = href(Alliance(filter = entry.key.takeIf { entry != MemberFilter.ALL }, pseudo = view.pseudo.ifEmpty { null }))
+                        val link = href(Alliance(filter = entry.key.takeIf { entry != MemberFilter.ALL }))
                         a(link, classes = if (entry.warning) "emp-filter emp-filter--warning" else "emp-filter") {
                             if (entry == filter) attributes["aria-current"] = "true"
                             // Whole spans: a chip is a flex box, which drops the spaces between its children
@@ -164,10 +162,10 @@ private fun FlowContent.members(viewer: Viewer, overview: AllianceOverview, now:
                     }
                 }
             }
-            pseudoFilter(filter, view.pseudo)
+            pseudoFilter()
         }
         if (chief) settledMessage(overview, view)
-        val shown = overview.members.filter { filter.matches(it, now) && it.member.pseudo.contains(view.pseudo, ignoreCase = true) }
+        val shown = overview.members.filter { filter.matches(it, now) }
         if (shown.isEmpty()) {
             p("text-secondary") { +"Aucun membre pour ce filtre." }
         } else {
@@ -258,24 +256,18 @@ private fun UL.item(member: MemberOverview, viewer: Viewer, overview: AllianceOv
     }
 }
 
-// Without the script, the filter is sent; with it, the rows are filtered as the pseudo is typed
-private fun FlowContent.pseudoFilter(filter: MemberFilter, pseudo: String) =
-    form(action = href(Alliance()), method = FormMethod.get, classes = "alliance-search") {
+// The script filters the rows as the pseudo is typed
+private fun FlowContent.pseudoFilter() =
+    div("alliance-search") {
         attributes["role"] = "search"
-        if (filter != MemberFilter.ALL) input(InputType.hidden, name = FILTER_FIELD) { value = filter.key }
         label("visually-hidden") {
             htmlFor = "alliance-pseudo"
             +"Filtrer par pseudo"
         }
-        input(InputType.search, name = PSEUDO_FIELD, classes = "emp-field emp-field--compact") {
+        input(InputType.search, classes = "emp-field emp-field--compact") {
             id = "alliance-pseudo"
-            value = pseudo
             placeholder = "Filtrer par pseudo"
             attributes["autocomplete"] = "off"
-        }
-        empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
-            this.classes += "alliance-search__submit"
-            +"Filtrer"
         }
     }
 
@@ -301,11 +293,10 @@ private fun FlowContent.settlementForm(
     submitOnChange: Boolean = false,
     block: FORM.() -> Unit,
 ) = form(action = href(Alliance.Member.Settlement(Alliance.Member(pseudo = member.member.pseudo))), method = FormMethod.post, classes = classes) {
-    attributes["data-emp-live"] = MEMBERS_SECTION
+    live(MEMBERS_SECTION)
     if (submitOnChange) attributes["data-submit-on-change"] = ""
     // Back to the list as it was filtered
     input(InputType.hidden, name = FILTER_FIELD) { value = view.filter.key }
-    if (view.pseudo.isNotEmpty()) input(InputType.hidden, name = PSEUDO_FIELD) { value = view.pseudo }
     block()
 }
 
@@ -344,10 +335,6 @@ private fun TBODY.row(member: MemberOverview, viewer: Viewer, overview: Alliance
         td("alliance-members__settlement") {
             settlementForm(member, view, classes = "alliance-settlement", submitOnChange = true) {
                 settlementChoice(member, compact = true)
-                empBtn(BtnVariant.SECONDARY, BtnSize.SMALL) {
-                    this.classes += "alliance-settlement__submit"
-                    +"Enregistrer"
-                }
             }
             settlementNote(member, now)
         }

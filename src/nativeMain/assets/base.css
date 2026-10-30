@@ -7,6 +7,7 @@ a { color: var(--text-link); text-decoration: underline; text-underline-offset: 
 a:hover { color: var(--text-primary); }
 ::placeholder { color: var(--text-secondary); opacity: 1; }
 [hidden] { display: none !important; }
+html:not(.js) body > :not(noscript) { display: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .text-secondary { color: var(--text-secondary); }
 .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -137,7 +138,6 @@ span.wages-picker__step { color: var(--text-disabled); }
 .wages-panel__alerts { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) 0 0; border-top: 1px solid var(--border-subtle); list-style: none; font-size: 14px; color: var(--text-secondary); }
 .wages-panel__alert--warning { font-weight: 600; color: var(--warning); }
 .wages-panel__alert--danger { font-weight: 600; color: var(--danger); }
-.js .wages-panel__save { display: none; }
 @media (max-width: 47.99rem) {
     .wages-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .wages-tiles:not(.wages-tiles--chief) .wages-tile--left, .wages-tiles--chief .wages-tile--to-send { display: none; }
@@ -262,12 +262,9 @@ details[open] > summary .emp-disclosure__chevron { transform: rotate(180deg); }
 .paste { display: flex; flex-direction: column; gap: 6px; }
 .paste__field { display: flex; flex-direction: column; gap: 6px; }
 .paste__label { font-size: 14px; font-weight: 600; }
-.paste__submit { align-self: flex-end; }
-.js .paste__submit { display: none; }
-html:not(.js) .paste__clipboard, html:not(.js) .paste__hint { display: none; }
 @media (max-width: 47.99rem) {
-    .js .paste:not(.paste--manual) .paste__field { display: none; }
-    .js .paste--manual .paste__clipboard, .js .paste--manual .paste__hint { display: none; }
+    .paste:not(.paste--manual) .paste__field { display: none; }
+    .paste--manual .paste__clipboard, .paste--manual .paste__hint { display: none; }
 }
 @media (min-width: 48rem) {
     .paste__clipboard, .paste__hint { display: none; }
@@ -338,7 +335,6 @@ a.emp-filter { text-decoration: none; }
 @media (min-width: 48rem) {
     .alliance-search { width: 280px; }
 }
-.js .alliance-search__submit, .js .alliance-settlement__submit { display: none; }
 .alliance-members__saved { flex: 1; }
 
 /* A list on a phone, a table from a desktop width */

@@ -9,7 +9,6 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
 import kotlin.test.Test
@@ -35,7 +34,7 @@ class MemberPageTest {
     private suspend fun AppTestScope.page(pseudo: String) = plain(client.get(Alliance.Member(pseudo = pseudo)).bodyAsText())
 
     private suspend fun AppTestScope.act(path: String, vararg values: Pair<String, String>): HttpResponse =
-        browser.submitForm(path, parameters { values.forEach { (name, value) -> append(name, value) } })
+        browser.submitForm(path, parameters { values.forEach { (name, value) -> append(name, value) } }) { htmx() }
 
     @Test
     fun `a chief marks a delivery sent in the member's name and keeps their own name on it`() = appTest {
@@ -43,7 +42,7 @@ class MemberPageTest {
 
         val res = act("/alliance/members/P1/computations/1/deliveries/3/sent")
 
-        assertEquals("/alliance/members/P1#send", res.headers[HttpHeaders.Location])
+        assertEquals(HttpStatusCode.OK, res.status)
         assertEquals(
             listOf(listOf<Any?>(1L, 3L, 78_000L, "declared", 3L)),
             query("SELECT from_player_id, to_player_id, amount, source, declared_by FROM convoys") { c -> listOf(c.getLong(0), c.getLong(1), c.getLong(2), c.getString(3), c.getLong(4)) },
@@ -73,12 +72,12 @@ class MemberPageTest {
 
         val res = act("/alliance/members/P1/levels/INCUBATOR", "level" to "3")
 
-        assertTrue(Regex("""/alliance/members/P1\?change=\d+#levels""").matches(res.headers[HttpHeaders.Location]!!))
         assertEquals(listOf(listOf(3L, 3L)), query("SELECT incubator_level, levels_updated_by FROM players WHERE id = 1") { c -> (0..1).map { c.getLong(it) } })
-        val page = plain(client.get(res.headers[HttpHeaders.Location]!!).bodyAsText())
-        assertTrue("""<h2 class="card-title" id="levels-title">Niveaux<span class="emp-badge emp-badge--leader">Chef</span></h2><span class="small text-secondary me-levels__date">mis à jour par P3 à l'instant</span>""" in page)
-        assertTrue("✓ Couveuse 0 → 3 enregistré" in page)
-        assertTrue("Visible par le membre et les chefs seulement." in page)
+        val levels = plain(res.bodyAsText())
+        assertTrue("""<h2 class="card-title" id="levels-title">Niveaux<span class="emp-badge emp-badge--leader">Chef</span></h2><span class="small text-secondary me-levels__date">mis à jour par P3 à l'instant</span>""" in levels)
+        assertTrue("✓ Couveuse 0 → 3 enregistré" in levels)
+        assertTrue("Visible par le membre et les chefs seulement." in levels)
+        val page = page("P1")
         assertTrue("""<summary class="emp-disclosure emp-disclosure--card">Détail de son calcul""" in page)
         assertTrue("""<th scope="row">Production propre</th><td class="number amount">192 000</td>""" in page)
     }
@@ -103,10 +102,39 @@ class MemberPageTest {
 
         val res = act("/alliance/members/P1/settlement", "settlement" to "ACCUMULATE_DEBT")
 
-        assertEquals("/alliance/members/P1?notice=SETTLED&previous=DELIVER#settlement", res.headers[HttpHeaders.Location])
-        val page = plain(client.get(res.headers[HttpHeaders.Location]!!).bodyAsText())
+        val page = plain(res.bodyAsText())
         assertTrue("✓ Il cumule en dette au prochain calcul" in page)
         assertTrue("""<input type="hidden" name="settlement" value="DELIVER"><button type="submit" class="emp-btn emp-btn--link emp-btn--compact" aria-label="Annuler : il envoie">Annuler</button>""" in page)
+    }
+
+    @Test
+    fun `htmx gets the sections a chief's action changed`() = appTest {
+        computation()
+
+        val levels = browser.submitForm("/alliance/members/P1/levels/INCUBATOR", parameters { append("level", "3") }) { htmx() }
+        val settled = browser.submitForm("/alliance/members/P1/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) { htmx() }
+        val declared = browser.submitForm("/alliance/members/P1/computations/1/deliveries/3/sent", parameters { }) { htmx() }
+        val named = browser.submitForm("/alliance/members/P1/chief", parameters { append("chief", "true") }) { htmx() }
+
+        assertEquals(listOf("levels"), sectionIds(levels.bodyAsText()))
+        assertTrue("✓ Couveuse 0 → 3 enregistré" in plain(levels.bodyAsText()))
+        assertEquals(listOf("settlement"), sectionIds(settled.bodyAsText()))
+        assertTrue("✓ Il cumule en dette au prochain calcul" in plain(settled.bodyAsText()))
+        assertEquals(listOf("sending"), sectionIds(declared.bodyAsText()))
+        assertTrue("déclaré par P3 " in plain(declared.bodyAsText()))
+        assertEquals(listOf("access", "member-header"), sectionIds(named.bodyAsText()))
+        assertTrue("✓ P1 est chef de l'alliance." in plain(named.bodyAsText()))
+    }
+
+    @Test
+    fun `htmx loads the list when a chief gives up their own role`() = appTest {
+        computation()
+        act("/alliance/members/P1/chief", "chief" to "true")
+
+        val res = browser.submitForm("/alliance/members/P3/chief", parameters { }) { htmx() }
+
+        assertEquals(HttpStatusCode.NoContent, res.status)
+        assertEquals("/alliance", res.headers["HX-Redirect"])
     }
 
     @Test
@@ -130,15 +158,13 @@ class MemberPageTest {
     fun `the alliance always keeps a chief`() = appTest {
         computation()
 
-        val alone = act("/alliance/members/P3/chief")
-        val refused = plain(client.get(alone.headers[HttpHeaders.Location]!!).bodyAsText())
-        val named = act("/alliance/members/P1/chief", "chief" to "true")
+        val alone = plain(act("/alliance/members/P3/chief").bodyAsText())
+        val named = plain(act("/alliance/members/P1/chief", "chief" to "true").bodyAsText())
         val left = act("/alliance/members/P3/chief")
 
-        assertEquals("/alliance/members/P3?notice=LAST_CHIEF#access", alone.headers[HttpHeaders.Location])
-        assertTrue("P3 est le dernier chef : nomme d'abord un autre chef." in refused)
-        assertEquals("/alliance/members/P1?notice=CHIEF#access", named.headers[HttpHeaders.Location])
-        assertEquals("/alliance", left.headers[HttpHeaders.Location])
+        assertTrue("P3 est le dernier chef : nomme d'abord un autre chef." in alone)
+        assertTrue("✓ P1 est chef de l'alliance." in named)
+        assertEquals("/alliance", left.headers["HX-Redirect"])
         assertEquals(listOf(1L), query("SELECT id FROM players WHERE is_chief = 1") { it.getLong(0) })
     }
 
@@ -150,6 +176,6 @@ class MemberPageTest {
 
         assertEquals(HttpStatusCode.OK, res.status)
         assertTrue("Aucun membre de l'alliance n'a ce pseudo." in res.bodyAsText())
-        assertEquals("/alliance", act("/alliance/members/Inconnu/settlement", "settlement" to "DELIVER").headers[HttpHeaders.Location])
+        assertEquals("/alliance", act("/alliance/members/Inconnu/settlement", "settlement" to "DELIVER").headers["HX-Redirect"])
     }
 }

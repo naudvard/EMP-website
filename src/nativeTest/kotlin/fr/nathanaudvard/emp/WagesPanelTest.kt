@@ -47,7 +47,7 @@ class WagesPanelTest {
                 append("time", time)
                 append("distribution", distribution)
             },
-        )
+        ) { htmx() }
 
     @Test
     fun `shows the chiefs when the next computation runs and what needs them`() = appTest {
@@ -105,8 +105,7 @@ class WagesPanelTest {
 
         val res = saveSettings("17:30", "PROPORTIONAL")
 
-        assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/wages#panel", res.headers[HttpHeaders.Location])
+        assertEquals(HttpStatusCode.OK, res.status)
         val page = page()
         assertTrue("Prochain calcul : aujourd'hui 17:30</h2>" in page)
         assertTrue("""value="PROPORTIONAL" checked="checked">""" in page)
@@ -123,6 +122,24 @@ class WagesPanelTest {
         val me = plain(client.get(Me()).bodyAsText())
         assertTrue("<span>· prochain demain 17:30</span>" in me)
         assertTrue("""<h2 class="me-card-caption" id="send-title">À envoyer avant demain 17:30</h2>""" in me)
+    }
+
+    @Test
+    fun `htmx gets the panel alone once the settings are saved`() = appTest {
+        computed()
+
+        val res = client.config { followRedirects = false }.submitForm(
+            "/wages/settings",
+            parameters {
+                append("time", "17:30")
+                append("distribution", "PROPORTIONAL")
+            },
+        ) { htmx() }
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        val panel = plain(res.bodyAsText())
+        assertEquals(listOf("panel"), sectionIds(panel))
+        assertTrue("Prochain calcul : aujourd'hui 17:30</h2>" in panel)
     }
 
     @Test
@@ -165,7 +182,7 @@ class WagesPanelTest {
         client.submitForm(
             "/alliance/members/P1/convoys",
             parameters { append("message", "Vous allez livrer 0 nourritures et 70000 materiaux à P3 dans 1H") },
-        )
+        ) { htmx() }
 
         val page = page()
         val reminder = client.post(Wages.Reminder(computationId = 1, playerId = 1)) { accept(ContentType.Text.Plain) }

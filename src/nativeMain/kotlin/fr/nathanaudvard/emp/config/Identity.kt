@@ -6,6 +6,7 @@ import fr.nathanaudvard.emp.domain.model.Identification
 import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.domain.usecase.IdentifyViewerUseCase
 import fr.nathanaudvard.emp.service.SESSION_DURATION
+import fr.nathanaudvard.emp.web.redirect
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.AccessNotice
 import io.ktor.server.application.Application
@@ -21,7 +22,6 @@ import io.ktor.server.auth.session
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.request.uri
 import io.ktor.server.resources.href
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.sessions.SessionSerializer
 import io.ktor.server.sessions.Sessions
@@ -75,7 +75,7 @@ suspend fun Application.configureIdentity() {
     install(Authentication) {
         memberSession(MEMBER_SESSION, identify, allianceTag, accepts = { true }) { identification ->
             val notice = AccessNotice.LEFT.takeIf { identification == Identification.Left }
-            respondRedirect(application.href(Access(notice)))
+            redirect(application.href(Access(notice)))
         }
         memberSession(CHIEF_SESSION, identify, allianceTag, accepts = Viewer::chief) { identification ->
             if (identification is Identification.Member) throw ForbiddenException("Reserved to the chiefs")

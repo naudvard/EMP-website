@@ -3,10 +3,10 @@ package fr.nathanaudvard.emp.web.resources
 import io.ktor.resources.Resource
 import kotlinx.serialization.Serializable
 
-// The viewer's page. Change is a change of their levels just saved, shown with the way to undo it
+// The viewer's page
 @Serializable
 @Resource("/me")
-class Me(val change: Long? = null) {
+class Me {
     // Posted with the level a stepper's button steps to, or the one typed
     @Serializable
     @Resource("levels/{kind}")
@@ -30,7 +30,7 @@ class Me(val change: Long? = null) {
     @Serializable
     @Resource("convoys")
     class Convoys(val parent: Me = Me()) {
-        // Posted with the ids of the convoys, and the section to come back to
+        // Posted with the ids of the convoys
         @Serializable
         @Resource("delete")
         class Delete(val parent: Convoys = Convoys())

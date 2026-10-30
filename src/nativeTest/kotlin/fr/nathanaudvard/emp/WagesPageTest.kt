@@ -83,7 +83,7 @@ class WagesPageTest {
             client.submitForm(
                 "/alliance/members/$giver/convoys",
                 parameters { append("message", "Vous allez livrer 0 nourritures et $amount materiaux à $recipient dans 1H") },
-            )
+            ) { htmx() }
         }
     }
 

@@ -94,10 +94,10 @@ suspend fun Application.configureRouting() {
             wagesController(getWageHistory, getWagesPanel, getSettings, saveSettings, computeNow, clock, config.publicUrl, tag)
             alliancePageController(getAlliance, syncFourmizzz, clock, tag)
             memberController(
-                getMember, saveLevel, confirmLevels, undoLevelChange, declareConvoy, pasteConvoys, deleteConvoy,
+                getMember, getAlliance, saveLevel, confirmLevels, undoLevelChange, declareConvoy, pasteConvoys, deleteConvoy,
                 saveSettlement, setChief, sendLink, replaceLink, clock, config.publicUrl, tag,
             )
-            deviceController(createDeviceCode, getOverview, clock, tag)
+            deviceController(createDeviceCode)
         }
     }
 }

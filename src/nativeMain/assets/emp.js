@@ -1,57 +1,16 @@
-// Every page works without this script: it saves reloads, reads and writes the clipboard, and filters lists
+// The site needs this script and htmx, which posts the forms that change a part of the page: this one reads and writes
+// the clipboard, saves choices as they are made, and filters lists
 (function () {
     'use strict'
 
-    // Forms marked data-emp-live are posted in the background. The server answers as without JavaScript, with the
-    // page; the elements of the ids the attribute lists are replaced by those of the answer, the whole main when one
-    // is missing on one side only
-    function live(form, submitter) {
-        if (form.dataset.busy) return
-        var body = new URLSearchParams(new FormData(form))
-        if (submitter && submitter.name) body.append(submitter.name, submitter.value)
-        var buttons = form.querySelectorAll('button')
-        // Taken before the buttons are disabled, which moves the focus away
-        var active = document.activeElement
-        var focus = active && active.dataset && (active.id || active.dataset.focus)
-        form.dataset.busy = 'true'
-        buttons.forEach(function (button) { button.disabled = true })
-        fetch(form.action, { method: 'POST', body: body, headers: { Accept: 'text/html' } })
-            .then(function (res) {
-                var type = res.headers.get('Content-Type') || ''
-                return type.indexOf('text/html') === 0 ? res.text() : Promise.reject(res.status)
-            })
-            .then(function (html) { replace(new DOMParser().parseFromString(html, 'text/html'), form.dataset.empLive.split(' '), focus) })
-            .catch(function () {
-                // Posted for real: the server answers it the same way
-                delete form.dataset.busy
-                form.removeAttribute('data-emp-live')
-                buttons.forEach(function (button) { button.disabled = false })
-                if (submitter) submitter.click(); else form.submit()
-            })
+    // What htmx could not post, or the server refused, is said, then the page is loaded again to show where it stands
+    function failed() {
+        window.alert("Échec de l'enregistrement : la page va être rechargée.")
+        location.reload()
     }
 
-    function replace(page, ids, focus) {
-        var open = [].map.call(document.querySelectorAll('details[open][id]'), function (details) { return details.id })
-        var pairs = ids.map(function (id) { return [document.getElementById(id), page.getElementById(id)] })
-            .filter(function (pair) { return pair[0] || pair[1] })
-        if (pairs.some(function (pair) { return !pair[0] || !pair[1] })) pairs = [[document.querySelector('main'), page.querySelector('main')]]
-        pairs.forEach(function (pair) { pair[0].replaceWith(document.adoptNode(pair[1])) })
-        open.forEach(function (id) {
-            var details = document.getElementById(id)
-            if (details) details.open = true
-        })
-        if (focus) {
-            var target = document.getElementById(focus) || document.querySelector('[data-focus="' + focus + '"]')
-            if (target) target.focus({ preventScroll: true })
-        }
-    }
-
-    document.addEventListener('submit', function (event) {
-        var form = event.target
-        if (event.defaultPrevented || !form.hasAttribute('data-emp-live') || !window.fetch) return
-        event.preventDefault()
-        live(form, event.submitter)
-    })
+    document.addEventListener('htmx:sendError', failed)
+    document.addEventListener('htmx:responseError', failed)
 
     // A stepper's typed value is saved once validated
     document.addEventListener('change', function (event) {
@@ -132,10 +91,9 @@
         written.then(function () { copied(button) }, function () { form.submit() })
     })
 
-    // Wages: filter by pseudo, shown only when it can work
+    // Wages: filter by pseudo
     var filter = document.querySelector('.wages-filter input')
     if (filter) {
-        filter.parentElement.hidden = false
         var matches = function (element, query) { return element.dataset.pseudo.indexOf(query) >= 0 }
         filter.addEventListener('input', function () {
             var query = filter.value.trim().toLowerCase()
@@ -164,19 +122,34 @@
         })
     }
 
-    // Alliance: the rows are filtered as the pseudo is typed, the filter being sent without the script. The list is
-    // replaced when a settlement is chosen: the field is found again each time
-    document.addEventListener('input', function (event) {
-        var search = event.target
-        if (!search.matches('.alliance-search input[type=search]')) return
-        var query = search.value.trim().toLowerCase()
+    // Alliance: the rows are filtered as the pseudo is typed. The list is replaced when a settlement is chosen: the
+    // pseudo is typed back in the new one
+    var allianceQuery = ''
+
+    function filterMembers() {
+        var query = allianceQuery.trim().toLowerCase()
         document.querySelectorAll('.alliance-members__table tbody tr').forEach(function (row) {
             row.hidden = row.dataset.pseudo.indexOf(query) < 0
         })
+    }
+
+    document.addEventListener('input', function (event) {
+        if (!event.target.matches('.alliance-search input')) return
+        allianceQuery = event.target.value
+        filterMembers()
     })
 
-    // Folded on a phone, open from a desktop width or when linked to
-    ['method', 'calculation-detail'].forEach(function (id) {
+    document.addEventListener('htmx:load', function () {
+        var search = document.querySelector('.alliance-search input')
+        if (!search || !allianceQuery) return
+        search.value = allianceQuery
+        filterMembers()
+    })
+
+    // Folded on a phone, open from a desktop width or when linked to. Not a line starting with "[": without
+    // semicolons, it would be read as an index of the line before
+    var folded = ['method', 'calculation-detail']
+    folded.forEach(function (id) {
         var details = document.getElementById(id)
         if (details && (matchMedia('(min-width: 48rem)').matches || location.hash === '#' + id)) details.open = true
     })

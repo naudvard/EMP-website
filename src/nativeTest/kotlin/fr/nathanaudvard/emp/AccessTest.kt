@@ -58,8 +58,8 @@ class AccessTest {
     }
 
     private suspend fun AppTestScope.showDeviceCode(): String {
-        val page = client.post(Access.Device()).bodyAsText()
-        return Ksoup.parse(page).selectFirst(".device-code__value")!!.text()
+        val block = client.post(Access.Device()) { htmx() }.bodyAsText()
+        return Ksoup.parse(block).selectFirst(".device-code__value")!!.text()
     }
 
     private suspend fun AppTestScope.typeCode(code: String): HttpResponse =
@@ -104,7 +104,8 @@ class AccessTest {
             assertEquals(HttpStatusCode.Found, res.status, page)
             assertEquals("/access", res.headers[HttpHeaders.Location], page)
         }
-        assertEquals(HttpStatusCode.Found, browser.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }).status)
+        val settled = browser.submitForm("/alliance/members/abeille/settlement", parameters { append("settlement", "ACCUMULATE_DEBT") }) { htmx() }
+        assertEquals("/access", settled.headers["HX-Redirect"])
         assertEquals(listOf("DELIVER"), query("SELECT wage_settlement FROM players WHERE id = 124") { it.getString(0) })
 
         val access = client.get(Access()).bodyAsText()
@@ -190,7 +191,7 @@ class AccessTest {
     }
 
     @Test
-    fun `without the script the message is shown to be copied by hand`() = appTest {
+    fun `without the clipboard the message is shown to be copied by hand`() = appTest {
         syncMembers()
         signIn("Fourmi")
 
@@ -274,17 +275,17 @@ class AccessTest {
         signIn("abeille", chief = false)
 
         val code = showDeviceCode()
-        val page = client.post(Access.Device()).bodyAsText()
+        val block = plain(client.post(Access.Device()) { htmx() }.bodyAsText())
         signOut()
         val typed = code.lowercase().replace("-", " ")
         val res = typeCode(typed)
         val again = typeCode(code)
 
         assertTrue(Regex("""^[2-9A-HJKMNP-Z]{3}-[2-9A-HJKMNP-Z]{3}$""").matches(code))
-        assertTrue("Valable 10 minutes, une seule fois." in page)
-        // Shown on the player's page, in place of the button
-        assertTrue("""<div class="me-device" id="device"><section class="emp-card device-code" role="status">""" in plain(page))
-        assertTrue("Mes niveaux" in page)
+        assertTrue("Valable 10 minutes, une seule fois." in block)
+        // In place of the button
+        assertEquals(listOf("device"), sectionIds(block))
+        assertTrue("""<div class="me-device" id="device"><section class="emp-card device-code" role="status">""" in block)
         assertEquals(HttpStatusCode.Found, res.status)
         assertEquals("/me", res.headers[HttpHeaders.Location])
         identity.session = res.setCookie().single { it.name == SESSION_COOKIE }.value

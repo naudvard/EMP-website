@@ -2,7 +2,6 @@ package fr.nathanaudvard.emp
 
 import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Exports
-import fr.nathanaudvard.emp.domain.model.WageSettlement
 import fr.nathanaudvard.emp.web.pages.DIGIT_GROUP_SEPARATOR
 import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.resources.Alliance
@@ -48,7 +47,7 @@ class AlliancePageTest {
                 append("settlement", settlement)
                 filter?.let { append("filter", it) }
             },
-        )
+        ) { htmx() }
 
     private suspend fun AppTestScope.storedSettlements() =
         query("SELECT id, wage_settlement FROM players ORDER BY id") { it.getLong(0) to it.getString(1) }
@@ -116,14 +115,13 @@ class AlliancePageTest {
     }
 
     @Test
-    fun `the filters count right and combine with the pseudo`() = appTest {
+    fun `the filters count right and leave the pseudo to the script`() = appTest {
         syncMembers()
         execute("UPDATE players SET levels_updated_at = '${clock.now - 2.days}' WHERE id = 124")
         execute("UPDATE players SET levels_updated_at = '${clock.now - 15.days}', wage_settlement = 'ACCUMULATE_DEBT' WHERE id = 125")
 
         val all = page()
         val stale = page(Alliance(filter = "stale-levels"))
-        val combined = page(Alliance(filter = "never-signed-in", pseudo = "CIG"))
 
         assertTrue("""<a href="/alliance" class="emp-filter" aria-current="true">Tous · 3</a>""" in all)
         assertTrue("""<a href="/alliance?filter=stale-levels" class="emp-filter emp-filter--warning"><span class="abridged">Niveaux &gt; 7 j · 2</span><span class="whole">Niveaux de plus de 7 j · 2</span></a>""" in all)
@@ -131,33 +129,48 @@ class AlliancePageTest {
         assertTrue("""<a href="/alliance?filter=never-signed-in" class="emp-filter">Jamais connectés · 2</a>""" in all)
         assertEquals(setOf("fourmi", "cigale"), pseudos(stale).toSet())
         assertTrue("""<span class="alliance-members__stale">il y a 15 j</span>""" in stale)
-        assertEquals(listOf("cigale"), pseudos(combined))
-        assertTrue("""<a href="/alliance?filter=accumulate&amp;pseudo=CIG" class="emp-filter">Cumulent · 1</a>""" in combined)
-        assertTrue("""<input type="hidden" name="filter" value="never-signed-in"><label class="visually-hidden" for="alliance-pseudo">""" in combined)
+        assertTrue("""<div class="alliance-search" role="search"><label class="visually-hidden" for="alliance-pseudo">""" in stale)
     }
 
     @Test
     fun `a chief chooses at once what a member does with a negative balance and can undo it`() = appTest {
         syncMembers()
 
-        val res = settle("abeille", "ACCUMULATE_DEBT", filter = "accumulate")
+        val list = plain(settle("abeille", "ACCUMULATE_DEBT", filter = "accumulate").bodyAsText())
 
-        assertEquals("/alliance?filter=accumulate&settled=124&previous=DELIVER#members", res.headers[HttpHeaders.Location])
         assertEquals(listOf(123L to "DELIVER", 124L to "ACCUMULATE_DEBT", 125L to "DELIVER"), storedSettlements())
         assertEquals(
             listOf(listOf<Any?>(clock.now.toString(), 123L)),
             query("SELECT wage_settlement_updated_at, wage_settlement_updated_by FROM players WHERE id = 124") { listOf(it.getString(0), it.getLong(1)) },
         )
-        val page = page(Alliance(filter = "accumulate", settled = 124, previous = WageSettlement.DELIVER))
-        assertTrue("✓ abeille cumule sa dette au prochain calcul" in page)
-        assertTrue("""<input type="hidden" name="settlement" value="DELIVER"><button type="submit" class="emp-btn emp-btn--link emp-btn--compact" aria-label="Annuler : abeille envoie">Annuler</button>""" in page)
-        assertTrue("""<input type="radio" name="settlement" id="settlement-124-accumulate_debt" value="ACCUMULATE_DEBT" checked="checked">Cumule""" in page)
-        assertTrue("""<span class="small text-secondary alliance-settlement__date">à l'instant</span>""" in page)
-        assertTrue("« Si solde négatif » s'enregistre aussitôt (avec Annuler) et vaut pour le prochain calcul." in page)
+        assertTrue("✓ abeille cumule sa dette au prochain calcul" in list)
+        assertTrue("""<input type="hidden" name="settlement" value="DELIVER"><button type="submit" class="emp-btn emp-btn--link emp-btn--compact" aria-label="Annuler : abeille envoie">Annuler</button>""" in list)
+        assertTrue("""<input type="radio" name="settlement" id="settlement-124-accumulate_debt" value="ACCUMULATE_DEBT" checked="checked">Cumule""" in list)
+        assertTrue("""<span class="small text-secondary alliance-settlement__date">à l'instant</span>""" in list)
+        assertTrue("« Si solde négatif » s'enregistre aussitôt (avec Annuler) et vaut pour le prochain calcul." in page())
 
         settle("abeille", "DELIVER")
 
         assertEquals(listOf(123L to "DELIVER", 124L to "DELIVER", 125L to "DELIVER"), storedSettlements())
+    }
+
+    @Test
+    fun `htmx gets the members list as it was filtered`() = appTest {
+        syncMembers()
+
+        val res = browser.submitForm(
+            "/alliance/members/abeille/settlement",
+            parameters {
+                append("settlement", "ACCUMULATE_DEBT")
+                append("filter", "accumulate")
+            },
+        ) { htmx() }
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        val list = plain(res.bodyAsText())
+        assertEquals(listOf("members"), sectionIds(list))
+        assertEquals(listOf("abeille"), pseudos(list))
+        assertTrue("✓ abeille cumule sa dette au prochain calcul" in list)
     }
 
     @Test

@@ -12,19 +12,21 @@ import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
 import fr.nathanaudvard.emp.domain.usecase.GetWagesPanelUseCase
 import fr.nathanaudvard.emp.domain.usecase.SaveAllianceSettingsUseCase
 import fr.nathanaudvard.emp.web.pages.CopiedText
-import fr.nathanaudvard.emp.web.pages.PANEL_SECTION
 import fr.nathanaudvard.emp.web.pages.WagesFields
 import fr.nathanaudvard.emp.web.pages.announcementText
 import fr.nathanaudvard.emp.web.pages.computePage
 import fr.nathanaudvard.emp.web.pages.reminderText
 import fr.nathanaudvard.emp.web.pages.wagesPage
+import fr.nathanaudvard.emp.web.pages.wagesPanel
 import fr.nathanaudvard.emp.web.resources.Me
 import fr.nathanaudvard.emp.web.resources.Wages
+import fr.nathanaudvard.emp.web.respondSections
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.log
 import io.ktor.server.html.respondHtml
+import io.ktor.server.htmx.hx
 import io.ktor.server.request.accept
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.resources.get
@@ -77,7 +79,7 @@ fun Route.wagesController(
         }
     }
 
-    // The copy button's script asks for the text alone; without it, the page shows the text to copy by hand
+    // The copy button's script asks for the text alone; without the clipboard, the page shows the text to copy by hand
     suspend fun ApplicationCall.respondCopy(text: String, label: String, computationId: Long) {
         if (request.accept()?.contains(ContentType.Text.Plain.toString()) == true) {
             respondText(text)
@@ -88,17 +90,20 @@ fun Route.wagesController(
 
     get<Wages> { page -> call.respondWages(page) }
 
-    // Back to the computation the chief was looking at
-    post<Wages.Settings> {
-        val chief = call.requireChief()
-        val parameters = call.receiveParameters()
-        val time = parameters[WagesFields.TIME]?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
-        val distribution = WageDistribution.entries.find { it.name == parameters[WagesFields.DISTRIBUTION] }
-        if (time != null && distribution != null) {
-            saveSettings(allianceTag, LocalTime(time.hour, time.minute), distribution, chief.playerId)
+    // The panel of the computation the chief is looking at
+    hx {
+        post<Wages.Settings> {
+            val chief = call.requireChief()
+            val parameters = call.receiveParameters()
+            val time = parameters[WagesFields.TIME]?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+            val distribution = WageDistribution.entries.find { it.name == parameters[WagesFields.DISTRIBUTION] }
+            if (time != null && distribution != null) {
+                saveSettings(allianceTag, LocalTime(time.hour, time.minute), distribution, chief.playerId)
+            }
+            val history = getWageHistory(allianceTag, parameters[WagesFields.ID]?.toLongOrNull())
+            val panel = getPanel(allianceTag)
+            call.respondSections { wagesPanel(panel, history, clock.now()) }
         }
-        val page = Wages(id = parameters[WagesFields.ID]?.toLongOrNull())
-        call.respondRedirect("${call.application.href(page)}#$PANEL_SECTION")
     }
 
     get<Wages.Compute> {
