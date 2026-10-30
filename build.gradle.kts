@@ -83,12 +83,17 @@ val generateAssets = tasks.register("generateAssets") {
 kotlin {
     val hostOs = System.getProperty("os.name")
     val isArm64 = System.getProperty("os.arch") == "aarch64"
-    val nativeTarget = when {
-        hostOs == "Mac OS X" && isArm64 -> macosArm64()
-        hostOs == "Linux" && isArm64 -> linuxArm64()
-        hostOs == "Linux" -> linuxX64()
-        hostOs.startsWith("Windows") -> mingwX64()
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+    // The Kotlin/Native compiler does not run on Linux arm64: that binary is cross-compiled with -PnativeTarget=linuxArm64
+    val nativeTarget = when (val target = providers.gradleProperty("nativeTarget").orNull) {
+        null -> when {
+            hostOs == "Mac OS X" && isArm64 -> macosArm64()
+            hostOs == "Linux" && !isArm64 -> linuxX64()
+            hostOs.startsWith("Windows") -> mingwX64()
+            else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+        }
+        "linuxArm64" -> linuxArm64()
+        "linuxX64" -> linuxX64()
+        else -> throw GradleException("Unsupported nativeTarget: $target")
     }
 
     nativeTarget.apply {
@@ -148,9 +153,9 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(
-                when {
-                    hostOs.startsWith("Windows") -> libs.ktor.client.winhttp
-                    hostOs == "Mac OS X" -> libs.ktor.client.darwin
+                when (nativeTarget.name) {
+                    "mingwX64" -> libs.ktor.client.winhttp
+                    "macosArm64" -> libs.ktor.client.darwin
                     else -> libs.ktor.client.curl
                 }
             )

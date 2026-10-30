@@ -6,7 +6,7 @@ EMP is a website for the EMP alliance of the browser game Fourmizzz (s5): it syn
 
 ## Commands
 
-Kotlin/Native only, with a single target picked from the host (`mingwX64` on Windows, `macosArm64`, `linuxX64`, `linuxArm64`). Task names below use `MingwX64`; substitute the host target.
+Kotlin/Native only, with a single target picked from the host (`mingwX64` on Windows, `macosArm64`, `linuxX64`), or forced with `-PnativeTarget=linuxArm64` (or `linuxX64`) to cross-compile: the compiler doesn't run on Linux arm64, so CI builds that binary on x64, where its tests can't run. Task names below use `MingwX64`; substitute the host target.
 
 ```bash
 ./gradlew linkDebugExecutableMingwX64        # build → build/bin/mingwX64/debugExecutable/emp.exe
