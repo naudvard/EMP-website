@@ -3,8 +3,7 @@
 body { margin: 0; background: var(--surface-page); color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .emp-header :focus-visible { outline-color: var(--highlight); }
-a { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
-a:hover { color: var(--text-primary); }
+a { text-decoration: underline; text-underline-offset: 3px; }
 ::placeholder { color: var(--text-secondary); opacity: 1; }
 [hidden] { display: none !important; }
 html:not(.js) body > :not(noscript) { display: none; }
