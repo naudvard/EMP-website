@@ -5,11 +5,12 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/v1/alliances/EMP/wages?distribution=minimal"
+  url: "{{baseUrl}}/api/v1/alliances/EMP/wages"
   params:
     - name: distribution
       value: minimal
       type: query
+      disabled: true
   auth: inherit
 
 settings:

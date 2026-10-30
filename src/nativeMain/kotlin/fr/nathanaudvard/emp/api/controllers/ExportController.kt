@@ -4,8 +4,7 @@ import fr.nathanaudvard.emp.api.dto.SyncRequest
 import fr.nathanaudvard.emp.api.dto.toResponse
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.domain.model.ExportVersion
-import fr.nathanaudvard.emp.domain.usecase.SyncExportedAlliancesUseCase
-import fr.nathanaudvard.emp.domain.usecase.SyncExportedPlayersUseCase
+import fr.nathanaudvard.emp.domain.service.ExportService
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.receive
 import io.ktor.server.resources.post
@@ -13,12 +12,12 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingCall
 
-fun Route.exportController(syncAlliances: SyncExportedAlliancesUseCase, syncPlayers: SyncExportedPlayersUseCase) {
+fun Route.exportController(exports: ExportService) {
     post<Exports.Alliances.Sync> { sync ->
-        call.respond(syncAlliances(ExportVersion.parse(sync.version), call.receiveTags()).toResponse())
+        call.respond(exports.syncAlliances(ExportVersion.parse(sync.version), call.receiveTags()).toResponse())
     }
     post<Exports.Players.Sync> { sync ->
-        call.respond(syncPlayers(ExportVersion.parse(sync.version), call.receiveTags()).toResponse())
+        call.respond(exports.syncPlayers(ExportVersion.parse(sync.version), call.receiveTags()).toResponse())
     }
 }
 

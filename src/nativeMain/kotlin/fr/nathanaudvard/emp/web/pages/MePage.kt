@@ -1,5 +1,8 @@
 package fr.nathanaudvard.emp.web.pages
 
+import fr.nathanaudvard.emp.domain.helper.COLONY_BASE_SHARE_PERCENT
+import fr.nathanaudvard.emp.domain.helper.DEVICE_CODE_DURATION
+import fr.nathanaudvard.emp.domain.helper.WOOD_PER_FIELD_PER_DAY
 import fr.nathanaudvard.emp.domain.model.Convoy
 import fr.nathanaudvard.emp.domain.model.ConvoyPaste
 import fr.nathanaudvard.emp.domain.model.ConvoySource
@@ -13,9 +16,6 @@ import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageDelivery
-import fr.nathanaudvard.emp.service.COLONY_BASE_SHARE_PERCENT
-import fr.nathanaudvard.emp.service.DEVICE_CODE_DURATION
-import fr.nathanaudvard.emp.service.WOOD_PER_FIELD_PER_DAY
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.Me
 import fr.nathanaudvard.emp.web.resources.Wages
@@ -93,7 +93,6 @@ class PlayerForms(
     val confirmLevels: String,
     val undoLevelChange: (Long) -> String,
     val declare: (computationId: Long, to: Long) -> String,
-    val convoys: String,
     val deleteConvoys: String,
 )
 
@@ -103,7 +102,6 @@ private val MY_FORMS = PlayerForms(
     confirmLevels = href(Me.ConfirmLevels()),
     undoLevelChange = { href(Me.UndoLevelChange(id = it)) },
     declare = { computationId, to -> href(Me.Declare(computationId = computationId, to = to)) },
-    convoys = href(Me.Convoys()),
     deleteConvoys = href(Me.Convoys.Delete()),
 )
 
@@ -314,7 +312,8 @@ fun FlowContent.sendCard(mine: Mine, now: Instant, forms: PlayerForms, paste: Pa
             }
         }
         deliveriesTable(lines, mine.saved.id, now, forms, previous = null)
-        pasteBlock(MeSection.SEND, paste, now, forms)
+        // The game's messages are only pasted by the player
+        if (forms.own) pasteBlock(MeSection.SEND, paste, now, forms)
     }
 
 fun FlowContent.previousCard(
@@ -416,16 +415,16 @@ private fun FlowContent.deleteForm(ids: List<Long>, forms: PlayerForms, button: 
 // outside the form, which holds none
 private fun FlowContent.pasteBlock(section: MeSection, paste: PasteForm?, now: Instant, forms: PlayerForms) = div("paste-block") {
     paste?.let { pasteMessages(it, section, now, forms) }
-    form(action = forms.convoys, method = FormMethod.post, classes = if (paste?.result?.nothing == true) "paste paste--manual" else "paste") {
+    form(action = href(Me.Convoys()), method = FormMethod.post, classes = if (paste?.result?.nothing == true) "paste paste--manual" else "paste") {
         live(MeSection.SENDING)
         empBtn(BtnVariant.SECONDARY, type = ButtonType.button) {
             this.classes += "paste__clipboard"
             attributes["data-paste"] = ""
             unsafe { +CLIPBOARD_ICON }
-            +(if (forms.own) "Coller les messages du jeu" else "Coller un message en son nom")
+            +"Coller les messages du jeu"
         }
         p("paste__hint small text-secondary") {
-            +(if (forms.own) "Envoi partiel : copie la page des convois du jeu, puis touche ce bouton." else "Copie le message du jeu qu'il t'a transmis, puis touche ce bouton.")
+            +"Envoi partiel : copie la page des convois du jeu, puis touche ce bouton."
         }
         div("paste__field") {
             val field = "${section.id}-message"
@@ -433,7 +432,7 @@ private fun FlowContent.pasteBlock(section: MeSection, paste: PasteForm?, now: I
             label("paste__label") {
                 htmlFor = field
                 attributes["data-manual"] = "Colle le message ici"
-                +(if (forms.own) "Envoi partiel ou plusieurs convois : colle le message du jeu" else "Coller un message du jeu en son nom")
+                +"Envoi partiel ou plusieurs convois : colle le message du jeu"
             }
             textArea(rows = "2", classes = "emp-textarea") {
                 id = field

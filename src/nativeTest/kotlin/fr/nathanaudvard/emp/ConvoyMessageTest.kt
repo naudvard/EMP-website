@@ -1,7 +1,7 @@
 package fr.nathanaudvard.emp
 
-import fr.nathanaudvard.emp.service.ConvoyMessage
-import fr.nathanaudvard.emp.service.parseConvoyMessages
+import fr.nathanaudvard.emp.domain.helper.ConvoyMessage
+import fr.nathanaudvard.emp.domain.helper.parseConvoyMessages
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.hours

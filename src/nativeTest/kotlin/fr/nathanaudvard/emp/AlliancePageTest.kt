@@ -54,45 +54,24 @@ class AlliancePageTest {
 
     private fun pseudos(page: String) = Ksoup.parse(page).select("tr[data-pseudo]").map { it.attr("data-pseudo") }
 
+    // The exports are synced by the API only: the page has no button for it
     @Test
-    fun `a chief syncs Fourmizzz and comes back to the alliance with the members count`() = appTest {
+    fun `shows the alliance and its members from the latest exports`() = appTest {
         syncMembers()
         fourmizzz.alliances("202610201300", listOf(empire))
         fourmizzz.players("202610201300", listOf(fourmi, abeille))
+        sync(Exports.Alliances.Sync(version = "202610201300"))
+        sync(Exports.Players.Sync(version = "202610201300"))
 
-        val res = browser.post(Alliance.Sync())
+        val page = page()
 
-        assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/alliance?synced=2", res.headers[HttpHeaders.Location])
-        val page = page(Alliance(synced = 2))
-        assertTrue("✓ 2 membres synchronisés" in page)
         assertTrue("""<h1 class="page-title">Alliance EMP</h1><p class="text-secondary">Empire · <span class="abridged">Fourmizzz 15:00</span><span class="whole">données Fourmizzz d'aujourd'hui 15:00</span></p>""" in page)
         assertTrue("""<span class="caption text-secondary">Joueurs</span><div class="alliance-tile__figure">2</div>""" in page)
         assertTrue("""<span class="abridged">0,00 M cm²</span><span class="whole">1 000 cm²</span>""" in page)
         assertTrue("""<span class="caption text-secondary">Guerres</span><div class="alliance-tile__figure">LRM</div>""" in page)
         assertTrue("""<span class="caption text-secondary">Pactes</span><div class="alliance-tile__figure">ODF</div>""" in page)
         assertEquals(listOf("fourmi", "abeille"), pseudos(page).sorted().reversed())
-    }
-
-    @Test
-    fun `says why the sync failed`() = appTest {
-        syncMembers()
-        fourmizzz.alliances("202610201300", listOf(empire))
-        fourmizzz.failing = true
-
-        val res = client.post(Alliance.Sync())
-
-        assertEquals(HttpStatusCode.BadGateway, res.status)
-        assertTrue("Fourmizzz ne répond pas : rien n'a été synchronisé." in res.bodyAsText())
-    }
-
-    @Test
-    fun `only chiefs sync`() = appTest {
-        syncMembers()
-        signIn("abeille", chief = false)
-
-        assertEquals(HttpStatusCode.Forbidden, client.post(Alliance.Sync()).status)
-        assertFalse("Synchroniser Fourmizzz" in page())
+        assertFalse("Synchroniser" in page)
     }
 
     @Test

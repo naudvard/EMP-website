@@ -35,5 +35,4 @@ suspend fun Application.module() {
     configureDependencies()
     configureIdentity()
     configureRouting()
-    scheduleWages()
 }

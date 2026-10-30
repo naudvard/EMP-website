@@ -55,15 +55,14 @@ class MemberPageTest {
     }
 
     @Test
-    fun `a chief pastes a message of the game in the member's name`() = appTest {
+    fun `a chief cannot paste a message of the game in the member's name`() = appTest {
         computation()
 
         val res = act("/alliance/members/P1/convoys", "message" to "Vous allez livrer 0 nourritures et 12 000 materiaux à P4 dans 1H")
 
-        assertEquals(HttpStatusCode.OK, res.status)
-        assertTrue("1 convoi enregistré" in plain(res.bodyAsText()))
-        assertEquals(listOf(listOf(1L, 4L, 3L)), query("SELECT from_player_id, to_player_id, declared_by FROM convoys") { c -> (0..2).map { c.getLong(it) } })
-        assertTrue("collé par P3 " in page("P1"))
+        assertEquals(HttpStatusCode.NotFound, res.status)
+        assertEquals(0L, query("SELECT COUNT(*) FROM convoys") { c -> c.getLong(0) }.single())
+        assertFalse("paste__clipboard" in page("P1"))
     }
 
     @Test
@@ -145,7 +144,7 @@ class MemberPageTest {
         assertEquals(HttpStatusCode.Forbidden, client.get(Alliance.Member(pseudo = "P2")).status)
         assertEquals(HttpStatusCode.Forbidden, client.get(Alliance.Member(pseudo = "P1")).status)
         for (path in listOf(
-            "levels/INCUBATOR", "levels/confirm", "levels/changes/1/undo", "computations/1/deliveries/3/sent", "convoys",
+            "levels/INCUBATOR", "levels/confirm", "levels/changes/1/undo", "computations/1/deliveries/3/sent",
             "convoys/delete", "settlement", "chief", "message", "replace",
         )) {
             assertEquals(HttpStatusCode.Forbidden, act("/alliance/members/P1/$path", "level" to "5", "chief" to "true").status, path)

@@ -4,11 +4,7 @@ import fr.nathanaudvard.emp.config.identify
 import fr.nathanaudvard.emp.config.viewer
 import fr.nathanaudvard.emp.domain.model.Identification
 import fr.nathanaudvard.emp.domain.model.SignIn
-import fr.nathanaudvard.emp.domain.usecase.CreateDeviceCodeUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetChiefsUseCase
-import fr.nathanaudvard.emp.domain.usecase.IdentifyViewerUseCase
-import fr.nathanaudvard.emp.domain.usecase.OpenAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.SignInWithCodeUseCase
+import fr.nathanaudvard.emp.domain.service.AccessService
 import fr.nathanaudvard.emp.web.pages.DEVICE_CODE_FIELD
 import fr.nathanaudvard.emp.web.pages.accessPage
 import fr.nathanaudvard.emp.web.pages.deviceBlock
@@ -31,14 +27,11 @@ import io.ktor.server.sessions.set
 
 // The pages a browser without a session reaches
 fun Route.accessController(
-    identify: IdentifyViewerUseCase,
-    openLink: OpenAccessLinkUseCase,
-    signInWithCode: SignInWithCodeUseCase,
-    getChiefs: GetChiefsUseCase,
+    access: AccessService,
     allianceTag: String,
 ) {
     suspend fun ApplicationCall.respondAccess(status: HttpStatusCode, notice: String? = null, code: String = "", codeError: String? = null) {
-        val chiefs = getChiefs(allianceTag).map { it.pseudo }
+        val chiefs = access.chiefs(allianceTag).map { it.pseudo }
         respondHtml(status) { accessPage(allianceTag, chiefs, notice, code, codeError) }
     }
 
@@ -49,17 +42,17 @@ fun Route.accessController(
 
     get<Access> { page ->
         // A browser already recognised goes straight to the pages
-        if (page.notice == null && call.identify(identify, allianceTag) is Identification.Member) {
+        if (page.notice == null && call.identify(access, allianceTag) is Identification.Member) {
             return@get call.respondRedirect(call.application.href(Me()))
         }
         call.respondAccess(HttpStatusCode.OK, page.notice?.message(allianceTag))
     }
 
     get<Access.Link> { link ->
-        when (val signIn = openLink(allianceTag, link.token)) {
+        when (val signIn = access.openLink(allianceTag, link.token)) {
             is SignIn.Opened -> call.signedIn(signIn)
             // The message opened again on the browser it signed in
-            SignIn.UsedLink if call.identify(identify, allianceTag) is Identification.Member ->
+            SignIn.UsedLink if call.identify(access, allianceTag) is Identification.Member ->
                 call.respondRedirect(call.application.href(Me()))
             else -> call.respondAccess(HttpStatusCode.Forbidden, signIn.message(allianceTag))
         }
@@ -67,7 +60,7 @@ fun Route.accessController(
 
     post<Access.Code> {
         val code = call.receiveParameters()[DEVICE_CODE_FIELD].orEmpty().trim()
-        when (val signIn = signInWithCode(allianceTag, code)) {
+        when (val signIn = access.signInWithCode(allianceTag, code)) {
             is SignIn.Opened -> call.signedIn(signIn)
             SignIn.Left -> call.respondAccess(HttpStatusCode.Forbidden, signIn.message(allianceTag))
             else -> call.respondAccess(HttpStatusCode.BadRequest, code = code, codeError = signIn.message(allianceTag))
@@ -76,10 +69,10 @@ fun Route.accessController(
 }
 
 // The code is shown on the viewer's page, in place of the button
-fun Route.deviceController(createDeviceCode: CreateDeviceCodeUseCase) {
+fun Route.deviceController(access: AccessService) {
     hx {
         post<Access.Device> {
-            val code = createDeviceCode(call.viewer)
+            val code = access.createDeviceCode(call.viewer)
             call.respondSections { deviceBlock(code) }
         }
     }

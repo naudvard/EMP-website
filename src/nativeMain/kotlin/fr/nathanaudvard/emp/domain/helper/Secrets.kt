@@ -1,4 +1,4 @@
-package fr.nathanaudvard.emp.service
+package fr.nathanaudvard.emp.domain.helper
 
 import io.ktor.util.generateNonceBlocking
 import io.ktor.util.sha256

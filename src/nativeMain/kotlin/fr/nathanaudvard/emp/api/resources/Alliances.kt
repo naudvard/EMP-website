@@ -11,6 +11,6 @@ class Alliances(val parent: ApiV1 = ApiV1()) {
     class Tag(val parent: Alliances = Alliances(), val tag: String) {
         @Serializable
         @Resource("wages")
-        class Wages(val parent: Tag, val distribution: String = "minimal")
+        class Wages(val parent: Tag, val distribution: String? = null)
     }
 }

@@ -6,9 +6,8 @@ import fr.nathanaudvard.emp.database.ExportedPlayerRepository
 import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.database.createDatabase
 import fr.nathanaudvard.emp.database.createSqlDriver
-import fr.nathanaudvard.emp.domain.usecase.CreateChiefLinkUseCase
-import fr.nathanaudvard.emp.service.AccessService
-import fr.nathanaudvard.emp.service.PlayerService
+import fr.nathanaudvard.emp.domain.helper.AccessHelper
+import fr.nathanaudvard.emp.domain.service.AccessService
 import fr.nathanaudvard.emp.web.pages.href
 import fr.nathanaudvard.emp.web.resources.Access
 import io.ktor.server.config.getAs
@@ -27,13 +26,15 @@ fun printChiefLink(args: List<String>) {
     val driver = createSqlDriver(config.database.path)
     try {
         val database = createDatabase(driver)
-        val players = PlayerRepository(database)
-        val createChiefLink = CreateChiefLinkUseCase(
-            AccessService(AccessRepository(database), players),
-            PlayerService(ExportedPlayerRepository(database), players),
+        val accessRepository = AccessRepository(database)
+        val access = AccessService(
+            AccessHelper(accessRepository),
+            accessRepository,
+            PlayerRepository(database),
+            ExportedPlayerRepository(database),
             Clock.System,
         )
-        val token = runBlocking { createChiefLink(config.alliance.tag, pseudo) }
+        val token = runBlocking { access.createChiefLink(config.alliance.tag, pseudo) }
             ?: exit("No member of ${config.alliance.tag} is called $pseudo in the latest players export")
         println("${config.publicUrl.trimEnd('/')}${href(Access.Link(token = token))}")
     } finally {

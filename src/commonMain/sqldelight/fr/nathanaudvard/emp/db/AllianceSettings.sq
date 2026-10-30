@@ -9,14 +9,3 @@ ON CONFLICT (alliance_tag) DO UPDATE SET
     distribution = excluded.distribution,
     updated_at = excluded.updated_at,
     updated_by = excluded.updated_by;
-
--- Without a row, the defaults are stored with the failure
-upsertFailure:
-INSERT INTO alliance_settings (alliance_tag, computation_time, distribution, failed_at, failure)
-VALUES (?, ?, ?, ?, ?)
-ON CONFLICT (alliance_tag) DO UPDATE SET
-    failed_at = excluded.failed_at,
-    failure = excluded.failure;
-
-clearFailure:
-UPDATE alliance_settings SET failed_at = NULL, failure = NULL WHERE alliance_tag = ?;

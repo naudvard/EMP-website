@@ -59,7 +59,6 @@ fun memberForms(pseudo: String): PlayerForms {
         confirmLevels = href(Alliance.Member.ConfirmLevels(member)),
         undoLevelChange = { href(Alliance.Member.UndoLevelChange(member, it)) },
         declare = { computationId, to -> href(Alliance.Member.Declare(member, computationId, to)) },
-        convoys = href(Alliance.Member.Convoys(member)),
         deleteConvoys = href(Alliance.Member.Convoys.Delete(Alliance.Member.Convoys(member))),
     )
 }
@@ -106,14 +105,14 @@ fun FlowContent.memberHeader(page: MemberPage) = div("member-header") {
 }
 
 // Its own page's sending column, under the same id, for the same forms
-fun FlowContent.memberSendingColumn(page: MemberPage, paste: PasteForm? = null) = div("member__column member__column--main") {
+fun FlowContent.memberSendingColumn(page: MemberPage) = div("member__column member__column--main") {
     id = MeSection.SENDING.id
     val mine = page.mine
     val previous = page.previous
     val now = page.now
-    previous?.let { (saved, left) -> previousCard(saved, left, now, page.forms, withPaste = mine?.sends.isNullOrEmpty(), paste = paste) }
+    previous?.let { (saved, left) -> previousCard(saved, left, now, page.forms, withPaste = false, paste = null) }
     if (mine != null && mine.sends.isNotEmpty()) {
-        sendCard(mine, now, page.forms, paste)
+        sendCard(mine, now, page.forms, paste = null)
     } else {
         empCard(cssClass = "me-send") {
             h2("card-title") { +"Envois du calcul" }

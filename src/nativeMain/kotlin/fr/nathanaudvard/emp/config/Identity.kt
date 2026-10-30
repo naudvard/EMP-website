@@ -2,10 +2,10 @@ package fr.nathanaudvard.emp.config
 
 import fr.nathanaudvard.emp.domain.exception.ForbiddenException
 import fr.nathanaudvard.emp.domain.exception.UnauthorizedException
+import fr.nathanaudvard.emp.domain.helper.SESSION_DURATION
 import fr.nathanaudvard.emp.domain.model.Identification
 import fr.nathanaudvard.emp.domain.model.Viewer
-import fr.nathanaudvard.emp.domain.usecase.IdentifyViewerUseCase
-import fr.nathanaudvard.emp.service.SESSION_DURATION
+import fr.nathanaudvard.emp.domain.service.AccessService
 import fr.nathanaudvard.emp.web.redirect
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.AccessNotice
@@ -50,13 +50,13 @@ fun ApplicationCall.requireEdit(playerId: Long): Viewer =
     viewer.also { if (!it.canEdit(playerId)) throw ForbiddenException("Only a chief acts for player $playerId") }
 
 // Each visit sets the cookie again: it expires a year after the latest one
-suspend fun ApplicationCall.identify(identifyViewer: IdentifyViewerUseCase, allianceTag: String): Identification {
+suspend fun ApplicationCall.identify(access: AccessService, allianceTag: String): Identification {
     val token = sessions.get<String>() ?: return Identification.Unknown
-    return identifyViewer(allianceTag, token).also { if (it is Identification.Member) sessions.set(token) }
+    return access.identify(allianceTag, token).also { if (it is Identification.Member) sessions.set(token) }
 }
 
 suspend fun Application.configureIdentity() {
-    val identify: IdentifyViewerUseCase = dependencies.resolve()
+    val access: AccessService = dependencies.resolve()
     val config: AppConfig = dependencies.resolve()
     val allianceTag = config.alliance.tag
     val apiToken = config.api.token
@@ -73,11 +73,11 @@ suspend fun Application.configureIdentity() {
     }
 
     install(Authentication) {
-        memberSession(MEMBER_SESSION, identify, allianceTag, accepts = { true }) { identification ->
+        memberSession(MEMBER_SESSION, access, allianceTag, accepts = { true }) { identification ->
             val notice = AccessNotice.LEFT.takeIf { identification == Identification.Left }
             redirect(application.href(Access(notice)))
         }
-        memberSession(CHIEF_SESSION, identify, allianceTag, accepts = Viewer::chief) { identification ->
+        memberSession(CHIEF_SESSION, access, allianceTag, accepts = Viewer::chief) { identification ->
             if (identification is Identification.Member) throw ForbiddenException("Reserved to the chiefs")
             throw UnauthorizedException("An API token or a chief's session is required")
         }
@@ -91,13 +91,13 @@ suspend fun Application.configureIdentity() {
 
 private fun AuthenticationConfig.memberSession(
     name: String,
-    identifyViewer: IdentifyViewerUseCase,
+    access: AccessService,
     allianceTag: String,
     accepts: (Viewer) -> Boolean,
     challenge: suspend ApplicationCall.(Identification) -> Unit,
 ) = session<String>(name) {
     validate {
-        val identification = identify(identifyViewer, allianceTag)
+        val identification = identify(access, allianceTag)
         attributes.put(IdentificationKey, identification)
         (identification as? Identification.Member)?.viewer?.takeIf(accepts)
     }

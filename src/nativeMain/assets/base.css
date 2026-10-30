@@ -132,22 +132,12 @@ span.wages-picker__step { color: var(--text-disabled); }
 .wages-panel__settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
 .wages-panel__setting { display: flex; flex-direction: column; gap: var(--space-1); }
 .wages-panel__updated { flex-basis: 100%; }
-.wages-panel__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.wages-panel__copied { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .wages-panel__alerts { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) 0 0; border-top: 1px solid var(--border-subtle); list-style: none; font-size: 14px; color: var(--text-secondary); }
 .wages-panel__alert--warning { font-weight: 600; color: var(--warning); }
-.wages-panel__alert--danger { font-weight: 600; color: var(--danger); }
 @media (max-width: 47.99rem) {
     .wages-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .wages-tiles:not(.wages-tiles--chief) .wages-tile--left, .wages-tiles--chief .wages-tile--to-send { display: none; }
-    .wages-panel__wide { display: none; }
 }
-@media (min-width: 48rem) {
-    .wages-panel__actions { display: none; }
-}
-.giver__reminder { display: flex; justify-content: flex-end; }
-.wages-compute__effects { display: flex; flex-direction: column; gap: var(--space-2); padding-left: 1.2em; }
-.wages-compute__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* Access */
 .access { box-sizing: border-box; width: 100%; max-width: 34rem; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
@@ -308,11 +298,6 @@ details[open] > summary .emp-disclosure__chevron { transform: rotate(180deg); }
 /* Alliance */
 .alliance-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 .alliance-header__title { display: flex; flex-direction: column; min-width: 0; }
-.alliance-sync__long { display: none; }
-@media (min-width: 48rem) {
-    .alliance-sync__long { display: inline; }
-    .alliance-sync__short { display: none; }
-}
 .alliance-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .alliance-tile__figure { font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
 @media (min-width: 48rem) {
@@ -349,10 +334,6 @@ a.emp-filter { text-decoration: none; }
 }
 @media (min-width: 48rem) {
     .alliance-list { display: none; }
-}
-.alliance-header__sync { display: flex; align-items: center; gap: var(--space-2); }
-@media (max-width: 47.99rem) {
-    .alliance-header__sync .emp-badge { display: none; }
 }
 .alliance-members__frame { overflow-x: auto; }
 .alliance-members__table td { vertical-align: middle; }

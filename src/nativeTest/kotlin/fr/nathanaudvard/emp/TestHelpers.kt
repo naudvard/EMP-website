@@ -6,21 +6,21 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import fr.nathanaudvard.emp.api.dto.SyncRequest
 import fr.nathanaudvard.emp.api.resources.Exports
+import fr.nathanaudvard.emp.database.PlayerRepository
+import fr.nathanaudvard.emp.domain.helper.AccessHelper
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.AllianceSettings
 import fr.nathanaudvard.emp.domain.model.ExportType
 import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageHistory
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceSettingsUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
+import fr.nathanaudvard.emp.domain.service.AllianceService
+import fr.nathanaudvard.emp.domain.service.WageService
 import fr.nathanaudvard.emp.fourmizzz.AllianceRes
 import fr.nathanaudvard.emp.fourmizzz.DiplomacyRes
 import fr.nathanaudvard.emp.fourmizzz.ExportVersionsRes
 import fr.nathanaudvard.emp.fourmizzz.PactRes
 import fr.nathanaudvard.emp.fourmizzz.PlayerRes
 import fr.nathanaudvard.emp.config.SESSION_COOKIE
-import fr.nathanaudvard.emp.service.AccessService
 import fr.nathanaudvard.emp.web.resources.Access
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.api.createClientPlugin
@@ -164,8 +164,9 @@ class AppTestScope(
     // Opens the member's link as a browser would, the member being a chief or not. Their alliance must be synced
     suspend fun signIn(pseudo: String, chief: Boolean = true) {
         val member = members().single { it.pseudo == pseudo }
-        val access: AccessService = builder.application.dependencies.resolve()
-        access.setChief(member.id, chief)
+        val access: AccessHelper = builder.application.dependencies.resolve()
+        val players: PlayerRepository = builder.application.dependencies.resolve()
+        players.setChief(member.id, chief)
         val token = access.issueLink(member.id, createdBy = null, clock.now)
         val res = client.config { followRedirects = false }.get(Access.Link(token = token))
         check(res.status == HttpStatusCode.Found) { "The link of $pseudo opened no session: ${res.status}" }
@@ -197,26 +198,26 @@ class AppTestScope(
     }
 
     suspend fun members(allianceTag: String = "EMP"): List<AllianceMember> {
-        val getMembers: GetAllianceMembersUseCase = builder.application.dependencies.resolve()
-        return getMembers(allianceTag)
+        val alliance: AllianceService = builder.application.dependencies.resolve()
+        return alliance.members(allianceTag)
     }
 
     suspend fun latestComputation(allianceTag: String = "EMP"): WageComputation {
-        val getWageHistory: GetWageHistoryUseCase = builder.application.dependencies.resolve()
-        return checkNotNull(getWageHistory(allianceTag).selected)
+        val wages: WageService = builder.application.dependencies.resolve()
+        return checkNotNull(wages.history(allianceTag).selected)
     }
 
     suspend fun wageHistory(allianceTag: String = "EMP"): WageHistory {
-        val getWageHistory: GetWageHistoryUseCase = builder.application.dependencies.resolve()
-        return getWageHistory(allianceTag)
+        val wages: WageService = builder.application.dependencies.resolve()
+        return wages.history(allianceTag)
     }
 
     // The application starts with the first request: nothing can be resolved before
     suspend fun start() = builder.startApplication()
 
     suspend fun settings(allianceTag: String = "EMP"): AllianceSettings {
-        val getSettings: GetAllianceSettingsUseCase = builder.application.dependencies.resolve()
-        return getSettings(allianceTag)
+        val wages: WageService = builder.application.dependencies.resolve()
+        return wages.settings(allianceTag)
     }
 
     suspend fun <T> query(sql: String, mapper: (SqlCursor) -> T): List<T> {

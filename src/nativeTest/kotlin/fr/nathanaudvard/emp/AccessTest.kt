@@ -3,8 +3,8 @@ package fr.nathanaudvard.emp
 import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.config.SESSION_COOKIE
+import fr.nathanaudvard.emp.domain.helper.AccessHelper
 import fr.nathanaudvard.emp.fourmizzz.PlayerRes
-import fr.nathanaudvard.emp.service.AccessService
 import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.resources.Access
 import fr.nathanaudvard.emp.web.resources.Alliance
@@ -68,7 +68,7 @@ class AccessTest {
     @Test
     fun `opening a link once keeps the browser signed in for a year`() = appTest {
         syncMembers()
-        val access: AccessService = application.dependencies.resolve()
+        val access: AccessHelper = application.dependencies.resolve()
         val token = access.issueLink(fourmi.id, createdBy = null, clock.now)
 
         val res = open("/access/$token")

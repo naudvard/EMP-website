@@ -4,18 +4,10 @@ import fr.nathanaudvard.emp.config.requireChief
 import fr.nathanaudvard.emp.domain.model.MemberDetail
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
 import fr.nathanaudvard.emp.domain.model.WageSettlement
-import fr.nathanaudvard.emp.domain.usecase.ConfirmPlayerLevelsUseCase
-import fr.nathanaudvard.emp.domain.usecase.DeclareConvoyUseCase
-import fr.nathanaudvard.emp.domain.usecase.DeleteConvoyUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetMemberUseCase
-import fr.nathanaudvard.emp.domain.usecase.PasteConvoysUseCase
-import fr.nathanaudvard.emp.domain.usecase.ReplaceAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.SavePlayerLevelUseCase
-import fr.nathanaudvard.emp.domain.usecase.SaveWageSettlementUseCase
-import fr.nathanaudvard.emp.domain.usecase.SendAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.SetChiefUseCase
-import fr.nathanaudvard.emp.domain.usecase.UndoLevelChangeUseCase
+import fr.nathanaudvard.emp.domain.service.AccessService
+import fr.nathanaudvard.emp.domain.service.AllianceService
+import fr.nathanaudvard.emp.domain.service.ConvoyService
+import fr.nathanaudvard.emp.domain.service.PlayerService
 import fr.nathanaudvard.emp.web.pages.AllianceView
 import fr.nathanaudvard.emp.web.pages.CHIEF_FIELD
 import fr.nathanaudvard.emp.web.pages.FILTER_FIELD
@@ -24,7 +16,6 @@ import fr.nathanaudvard.emp.web.pages.MemberFilter
 import fr.nathanaudvard.emp.web.pages.MemberPage
 import fr.nathanaudvard.emp.web.pages.MemberSection
 import fr.nathanaudvard.emp.web.pages.MemberView
-import fr.nathanaudvard.emp.web.pages.PasteForm
 import fr.nathanaudvard.emp.web.pages.SETTLEMENT_FIELD
 import fr.nathanaudvard.emp.web.pages.accessCard
 import fr.nathanaudvard.emp.web.pages.accessMessage
@@ -59,24 +50,16 @@ import kotlin.time.Clock
 // A member's page, for the chiefs only: everything posted here is done in the member's name, the chief being recorded
 // as its author, and gets back the sections it changed
 fun Route.memberController(
-    getMember: GetMemberUseCase,
-    getAlliance: GetAllianceUseCase,
-    saveLevel: SavePlayerLevelUseCase,
-    confirmLevels: ConfirmPlayerLevelsUseCase,
-    undoLevelChange: UndoLevelChangeUseCase,
-    declareConvoy: DeclareConvoyUseCase,
-    pasteConvoys: PasteConvoysUseCase,
-    deleteConvoys: DeleteConvoyUseCase,
-    saveSettlement: SaveWageSettlementUseCase,
-    setChief: SetChiefUseCase,
-    sendLink: SendAccessLinkUseCase,
-    replaceLink: ReplaceAccessLinkUseCase,
+    alliance: AllianceService,
+    players: PlayerService,
+    convoys: ConvoyService,
+    access: AccessService,
     clock: Clock,
     publicUrl: String,
     allianceTag: String,
 ) {
     suspend fun ApplicationCall.loadPage(pseudo: String, change: Long? = null): MemberPage? =
-        getMember(allianceTag, pseudo, change)?.let { MemberPage(requireChief(), it, clock.now()) }
+        alliance.member(allianceTag, pseudo, change)?.let { MemberPage(requireChief(), it, clock.now()) }
 
     // An unknown pseudo is said on the page: StatusPages would replace a 404 page with its JSON error
     suspend fun ApplicationCall.respondMember(pseudo: String, view: MemberView = MemberView()) {
@@ -88,7 +71,7 @@ fun Route.memberController(
     // The member a post acts for; back to the list when no member has the pseudo any more
     suspend fun ApplicationCall.target(pseudo: String): MemberDetail? {
         requireChief()
-        return getMember(allianceTag, pseudo) ?: run {
+        return alliance.member(allianceTag, pseudo) ?: run {
             redirect(application.href(Alliance()))
             null
         }
@@ -112,41 +95,32 @@ fun Route.memberController(
             val level = (parameters[MeFields.LEVEL] ?: parameters[MeFields.TYPED])?.trim()?.toLongOrNull()
                 ?.takeIf { it in 0..PlayerLevel.MAX_LEVEL.toLong() }
             val playerId = detail.member.member.id
-            val change = if (kind != null && level != null) saveLevel(playerId, kind, level, call.requireChief().playerId) else null
+            val change = if (kind != null && level != null) players.saveLevel(playerId, kind, level, call.requireChief().playerId) else null
             call.respondPage(detail, change?.id) { memberLevels(it) }
         }
 
         post<Alliance.Member.ConfirmLevels> { action ->
             val detail = call.target(action.parent.pseudo) ?: return@post
-            confirmLevels(detail.member.member.id, call.requireChief().playerId)
+            players.confirmLevels(detail.member.member.id, call.requireChief().playerId)
             call.respondPage(detail) { memberLevels(it) }
         }
 
         post<Alliance.Member.UndoLevelChange> { action ->
             val detail = call.target(action.parent.pseudo) ?: return@post
-            undoLevelChange(action.id, detail.member.member.id, call.requireChief().playerId)
+            players.undoLevelChange(action.id, detail.member.member.id, call.requireChief().playerId)
             call.respondPage(detail) { memberLevels(it) }
         }
 
         post<Alliance.Member.Declare> { action ->
             val detail = call.target(action.parent.pseudo) ?: return@post
-            declareConvoy(allianceTag, action.computationId, detail.member.member.id, action.to, call.requireChief().playerId)
+            convoys.declare(allianceTag, action.computationId, detail.member.member.id, action.to, call.requireChief().playerId)
             call.respondPage(detail) { memberSendingColumn(it) }
-        }
-
-        post<Alliance.Member.Convoys> { action ->
-            val detail = call.target(action.parent.pseudo) ?: return@post
-            val text = call.receiveParameters()[MeFields.MESSAGE].orEmpty()
-            val paste = PasteForm(text, pasteConvoys(allianceTag, detail.member.member.id, text, call.requireChief().playerId))
-            val page = call.loadPage(detail.member.member.pseudo) ?: return@post call.redirect(call.application.href(Alliance()))
-            val status = if (paste.result.nothing) HttpStatusCode.BadRequest else HttpStatusCode.OK
-            call.respondSections(status) { memberSendingColumn(page, paste) }
         }
 
         post<Alliance.Member.Convoys.Delete> { action ->
             val detail = call.target(action.parent.parent.pseudo) ?: return@post
             val ids = call.receiveParameters().getAll(MeFields.ID).orEmpty().mapNotNull { it.toLongOrNull() }
-            deleteConvoys(ids, detail.member.member.id)
+            convoys.delete(ids, detail.member.member.id)
             call.respondPage(detail) { memberSendingColumn(it) }
         }
 
@@ -156,11 +130,11 @@ fun Route.memberController(
             val parameters = call.receiveParameters()
             val member = detail.member.member
             val settlement = WageSettlement.entries.find { it.name == parameters[SETTLEMENT_FIELD] }
-            val previous = settlement?.let { saveSettlement(allianceTag, member.id, it, call.requireChief().playerId) }
+            val previous = settlement?.let { alliance.saveSettlement(allianceTag, member.id, it, call.requireChief().playerId) }
             val filter = parameters[FILTER_FIELD]
             if (filter != null) {
                 val view = AllianceView(MemberFilter.of(filter), settled = member.id.takeIf { previous != null }, previous = previous)
-                val overview = getAlliance(allianceTag)
+                val overview = alliance.overview(allianceTag)
                 val chief = call.requireChief()
                 return@post call.respondSections { allianceMembers(chief, overview, clock.now(), view) }
             }
@@ -174,7 +148,7 @@ fun Route.memberController(
             val chief = call.receiveParameters()[CHIEF_FIELD] == "true"
             val member = detail.member.member
             val notice = when {
-                !setChief(allianceTag, member.id, chief) -> MemberNotice.LAST_CHIEF
+                !access.setChief(allianceTag, member.id, chief) -> MemberNotice.LAST_CHIEF
                 chief -> MemberNotice.CHIEF
                 member.id == call.requireChief().playerId -> return@post call.redirect(call.application.href(Alliance()))
                 else -> MemberNotice.NOT_CHIEF
@@ -188,7 +162,7 @@ fun Route.memberController(
 
     post<Alliance.Member.Message> { action ->
         val detail = call.target(action.parent.pseudo) ?: return@post
-        val (member, token) = sendLink(allianceTag, detail.member.member.id, call.requireChief().playerId)
+        val (member, token) = access.sendLink(allianceTag, detail.member.member.id, call.requireChief().playerId)
             ?: return@post call.respondRedirect(call.application.href(Alliance()))
         val message = accessMessage(call.publicUrl(publicUrl, call.application.href(Access.Link(token = token))))
         // The copy button's script asks for the text alone
@@ -201,7 +175,7 @@ fun Route.memberController(
 
     post<Alliance.Member.Replace> { action ->
         val detail = call.target(action.parent.pseudo) ?: return@post
-        replaceLink(detail.member.member.id)
+        access.replaceLink(detail.member.member.id)
         val page = Alliance.Member(pseudo = detail.member.member.pseudo, notice = MemberNotice.REPLACED)
         call.respondRedirect("${call.application.href(page)}#${MemberSection.ACCESS.id}")
     }

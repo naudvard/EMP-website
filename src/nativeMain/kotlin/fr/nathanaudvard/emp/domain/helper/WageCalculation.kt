@@ -1,4 +1,4 @@
-package fr.nathanaudvard.emp.service
+package fr.nathanaudvard.emp.domain.helper
 
 import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
 import fr.nathanaudvard.emp.domain.model.AllianceMember

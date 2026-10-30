@@ -1,6 +1,14 @@
 package fr.nathanaudvard.emp
 
 import fr.nathanaudvard.emp.domain.exception.LevelsTooHighException
+import fr.nathanaudvard.emp.domain.helper.architectureReduction
+import fr.nathanaudvard.emp.domain.helper.colonyShare
+import fr.nathanaudvard.emp.domain.helper.distribute
+import fr.nathanaudvard.emp.domain.helper.layingNeed
+import fr.nathanaudvard.emp.domain.helper.layingTechniqueResearchSeconds
+import fr.nathanaudvard.emp.domain.helper.selfProductions
+import fr.nathanaudvard.emp.domain.helper.settleDebt
+import fr.nathanaudvard.emp.domain.helper.theoreticalNeed
 import fr.nathanaudvard.emp.domain.model.AllianceMember
 import fr.nathanaudvard.emp.domain.model.ExportVersion
 import fr.nathanaudvard.emp.domain.model.PlayerLevel
@@ -11,14 +19,6 @@ import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageDelivery
 import fr.nathanaudvard.emp.domain.model.WageDistribution
 import fr.nathanaudvard.emp.domain.model.WageSettlement
-import fr.nathanaudvard.emp.service.architectureReduction
-import fr.nathanaudvard.emp.service.colonyShare
-import fr.nathanaudvard.emp.service.distribute
-import fr.nathanaudvard.emp.service.layingNeed
-import fr.nathanaudvard.emp.service.layingTechniqueResearchSeconds
-import fr.nathanaudvard.emp.service.selfProductions
-import fr.nathanaudvard.emp.service.settleDebt
-import fr.nathanaudvard.emp.service.theoreticalNeed
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.test.Test

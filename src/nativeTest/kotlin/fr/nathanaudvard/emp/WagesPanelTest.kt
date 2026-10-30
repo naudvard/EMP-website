@@ -8,19 +8,15 @@ import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.resources.Me
 import fr.nathanaudvard.emp.web.resources.Wages
 import io.ktor.client.plugins.resources.get
-import io.ktor.client.plugins.resources.post
-import io.ktor.client.request.accept
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
+import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 
 class WagesPanelTest {
@@ -58,10 +54,9 @@ class WagesPanelTest {
 
         assertTrue("""<section class="emp-card emp-card--accent wages-panel" id="panel" aria-labelledby="panel-title">""" in page)
         assertTrue("""Prochain calcul : aujourd'hui 18:00</h2><span class="emp-badge emp-badge--leader">Chef</span>""" in page)
-        assertTrue("""id="computation-time" required="required" value="18:00">""" in page)
+        assertFalse("computation-time" in page)
         assertTrue("""value="MINIMAL" checked="checked">Minimale</label>""" in page)
         assertTrue("""value="PROPORTIONAL"><span class="abridged">Proport.</span><span class="whole">Proportionnelle</span></label>""" in page)
-        assertTrue("""<a href="/wages/compute" class="emp-btn emp-btn--primary">Calculer maintenant…</a>""" in page)
         assertTrue("""✓ Export <span class="whole">joueurs </span>Fourmizzz de 14:00, 4 membres</li>""" in page)
         assertTrue("""<a href="/alliance?filter=stale-levels" class="wages-panel__alert--warning"><span class="abridged">2 membres : niveaux de plus de 7 j ›</span><span class="whole">2 membres n'ont pas touché leurs niveaux depuis 7 j ›</span></a>""" in page)
         assertFalse("de dette</span> ›" in page)
@@ -87,15 +82,8 @@ class WagesPanelTest {
         val page = page()
 
         assertFalse("wages-panel" in page)
-        assertFalse("Copier un rappel" in page)
-        assertFalse("Copier l'annonce" in page)
         assertTrue("""<div class="wages-tiles"><div class="emp-tile">""" in page)
-        assertEquals(HttpStatusCode.Forbidden, client.get(Wages.Compute()).status)
-        assertEquals(HttpStatusCode.Forbidden, client.post(Wages.Compute()).status)
         assertEquals(HttpStatusCode.Forbidden, saveSettings("17:00", "PROPORTIONAL").status)
-        assertEquals(HttpStatusCode.Forbidden, client.post(Wages.Reminder(computationId = 1, playerId = 1)).status)
-        assertEquals(HttpStatusCode.Forbidden, client.post(Wages.Announcement(computationId = 1)).status)
-        assertEquals(1L, wageHistory().bounds.latestId)
         assertEquals(WageDistribution.MINIMAL, settings().distribution)
     }
 
@@ -125,6 +113,18 @@ class WagesPanelTest {
     }
 
     @Test
+    fun `keeps the time saved when the panel sends the distribution alone`() = appTest {
+        computed()
+        saveSettings("17:30", "MINIMAL")
+
+        val res = client.submitForm("/wages/settings", parameters { append("distribution", "PROPORTIONAL") }) { htmx() }
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        assertEquals(LocalTime(17, 30), settings().computationTime)
+        assertEquals(WageDistribution.PROPORTIONAL, settings().distribution)
+    }
+
+    @Test
     fun `htmx gets the panel alone once the settings are saved`() = appTest {
         computed()
 
@@ -142,91 +142,15 @@ class WagesPanelTest {
         assertTrue("Prochain calcul : aujourd'hui 17:30</h2>" in panel)
     }
 
+    // The computation is started by the API only: the panel has no button for it
     @Test
-    fun `computes now once confirmed and every page shows the new computation`() = appTest {
+    fun `the panel neither computes nor syncs`() = appTest {
         computed()
-
-        val confirmation = plain(client.get(Wages.Compute()).bodyAsText())
-        assertTrue("Il clôt la période en cours" in confirmation)
-        assertTrue("Les envois non faits restent à faire." in confirmation)
-        assertTrue("Le calcul de 18:00 partira de ce nouveau calcul" in confirmation)
-        assertTrue("""<form action="/wages/compute" method="post" class="wages-compute__actions">""" in confirmation)
-
-        clock.now = NOW + 2.hours
-        fourmizzz.players("202610201400", players)
-        val res = client.config { followRedirects = false }.post(Wages.Compute())
-
-        assertEquals(HttpStatusCode.Found, res.status)
-        assertEquals("/wages", res.headers[HttpHeaders.Location])
-        assertEquals(2L, wageHistory().bounds.latestId)
-        assertEquals(NOW, latestComputation().since)
-        assertTrue("Récolte du mar. 20 oct. 14:30 au mar. 20 oct. 16:30" in page())
-        signIn("P1", chief = false)
-        assertTrue("Calcul du mar. 20 oct. 16:30" in plain(client.get(Me()).bodyAsText()))
-    }
-
-    @Test
-    fun `says why nothing was computed`() = appTest {
-        computed()
-
-        val res = client.post(Wages.Compute())
-
-        assertEquals(HttpStatusCode.Conflict, res.status)
-        assertTrue("Rien n'a été calculé : aucun export joueurs Fourmizzz depuis le calcul précédent." in plain(res.bodyAsText()))
-        assertEquals(1L, wageHistory().bounds.latestId)
-    }
-
-    @Test
-    fun `copies a reminder of what a giver has left to send`() = appTest {
-        computed()
-        client.submitForm(
-            "/alliance/members/P1/convoys",
-            parameters { append("message", "Vous allez livrer 0 nourritures et 70000 materiaux à P3 dans 1H") },
-        ) { htmx() }
 
         val page = page()
-        val reminder = client.post(Wages.Reminder(computationId = 1, playerId = 1)) { accept(ContentType.Text.Plain) }
 
-        assertTrue("""<form action="/wages/1/reminders/1" method="post" class="giver__reminder"><button type="submit" class="emp-btn emp-btn--secondary emp-btn--compact" data-copy="">Copier un rappel</button></form>""" in page)
-        assertTrue("/wages/1/reminders/2" in page)
-        assertEquals(
-            """
-            |Salut P1,
-            |
-            |Il te reste à envoyer pour le calcul du mar. 20 oct. 14:30 :
-            |- 12 000 à P4
-            |- 8 000 à P3
-            |
-            |Avant le prochain calcul, mar. 20 oct. 18:00.
-            |Le détail, et « J'ai envoyé » une fois fait, sur ta page : http://localhost/me
-            """.trimMargin(),
-            reminder.bodyAsText(),
-        )
-    }
-
-    @Test
-    fun `copies the deliveries for the forum and nothing else`() = appTest {
-        computed()
-
-        val announcement = client.post(Wages.Announcement(computationId = 1)) { accept(ContentType.Text.Plain) }.bodyAsText()
-        // Without the script, the page shows the text to copy by hand
-        val fallback = plain(client.post(Wages.Announcement(computationId = 1)).bodyAsText())
-
-        assertEquals(
-            """
-            |Salaires du calcul du mar. 20 oct. 14:30
-            |
-            |P1 envoie :
-            |- 78 000 à P3
-            |- 12 000 à P4
-            |
-            |P2 envoie :
-            |- 42 000 à P4
-            """.trimMargin(),
-            announcement,
-        )
-        assertTrue("""<label for="copied-text">Annonce pour le forum de l'alliance</label>""" in fallback)
-        assertTrue("P2 envoie :\n- 42 000 à P4</textarea>" in fallback)
-        assertTrue("""<form action="/wages/1/announcement" method="post" class="wages-panel__announcement">""" in page())
+        assertFalse("Calculer" in page)
+        assertFalse("Synchroniser" in page)
+        assertFalse("Copier" in page)
     }
 }

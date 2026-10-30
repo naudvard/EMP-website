@@ -4,6 +4,7 @@ import com.fleeksoft.ksoup.Ksoup
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
 import fr.nathanaudvard.emp.domain.model.Viewer
+import fr.nathanaudvard.emp.domain.service.ConvoyService
 import fr.nathanaudvard.emp.web.pages.DIGIT_GROUP_SEPARATOR
 import fr.nathanaudvard.emp.web.pages.NBSP
 import fr.nathanaudvard.emp.web.pages.wagesPage
@@ -15,6 +16,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
+import io.ktor.server.plugins.di.dependencies
 import kotlinx.html.html
 import kotlinx.html.stream.createHTML
 import kotlin.test.Test
@@ -78,12 +80,11 @@ class WagesPageTest {
         signIn("P3")
     }
 
-    private suspend fun AppTestScope.recordConvoys(giver: String, vararg convoys: Pair<String, String>) {
+    // Pasted by the giver themself
+    private suspend fun AppTestScope.recordConvoys(giverId: Long, vararg convoys: Pair<String, String>) {
+        val convoyService: ConvoyService = application.dependencies.resolve()
         for ((recipient, amount) in convoys) {
-            client.submitForm(
-                "/alliance/members/$giver/convoys",
-                parameters { append("message", "Vous allez livrer 0 nourritures et $amount materiaux à $recipient dans 1H") },
-            ) { htmx() }
+            convoyService.paste("EMP", giverId, "Vous allez livrer 0 nourritures et $amount materiaux à $recipient dans 1H", giverId)
         }
     }
 
@@ -241,7 +242,7 @@ class WagesPageTest {
     @Test
     fun `shows what the convoys recorded cover and folds the givers who sent everything`() = appTest {
         twoComputations()
-        recordConvoys("P1", "P3" to "78 000", "P4" to "2 000")
+        recordConvoys(1, "P3" to "78 000", "P4" to "2 000")
 
         val page = page()
         
@@ -252,7 +253,7 @@ class WagesPageTest {
         assertTrue("""<span class="giver__recipient">→ P4<span class="giver__partial caption text-secondary">2 000 envoyés, reste 10 000</span></span><span class="amount">12 000</span><span class="giver__state"><span class="giver__state-left small text-secondary">reste 10 000</span></span>""" in page)
         assertEquals(listOf("Envoyé" to "60 %", "Reste · 2 livreurs" to "52 000"), tiles(page).drop(2))
 
-        recordConvoys("P1", "P4" to "10 000")
+        recordConvoys(1, "P4" to "10 000")
         val folded = page()
 
         assertEquals(listOf("42 000"), leftToSend(folded))

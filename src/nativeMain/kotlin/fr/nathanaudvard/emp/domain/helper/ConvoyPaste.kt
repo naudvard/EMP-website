@@ -1,4 +1,4 @@
-package fr.nathanaudvard.emp.service
+package fr.nathanaudvard.emp.domain.helper
 
 import fr.nathanaudvard.emp.domain.model.Convoy
 import fr.nathanaudvard.emp.domain.model.ConvoySource

@@ -58,11 +58,9 @@ enum class MemberFilter(val key: String, val label: String, val warning: Boolean
     }
 }
 
-// What the list was asked for, and what was just done: a sync, or a settlement chosen with the one it replaced
+// What the list was asked for, and what was just done: a settlement chosen with the one it replaced
 class AllianceView(
     val filter: MemberFilter = MemberFilter.ALL,
-    val synced: Int? = null,
-    val syncError: String? = null,
     val settled: Long? = null,
     val previous: WageSettlement? = null,
 )
@@ -92,18 +90,7 @@ fun HTML.alliancePage(allianceTag: String, viewer: Viewer, overview: AllianceOve
                     }
                 }
             }
-            if (viewer.chief) {
-                form(action = href(Alliance.Sync()), method = FormMethod.post, classes = "alliance-header__sync") {
-                    empBadge(BadgeVariant.LEADER, "Chef")
-                    empBtn(BtnVariant.SECONDARY, BtnSize.COMPACT) {
-                        span("alliance-sync__long") { +"Synchroniser Fourmizzz" }
-                        span("alliance-sync__short") { +"Synchro" }
-                    }
-                }
-            }
         }
-        view.synced?.let { empMessage(MessageVariant.SUCCESS) { +"✓ ${plural(it, "membre synchronisé", "membres synchronisés")}" } }
-        view.syncError?.let { empMessage(MessageVariant.DANGER) { +it } }
         if (overview.members.isEmpty()) {
             empMessage(MessageVariant.INFO) { +"Aucun membre connu : l'export des joueurs n'a pas encore été synchronisé." }
             return@layout

@@ -1,25 +1,21 @@
-package fr.nathanaudvard.emp.service
+package fr.nathanaudvard.emp.domain.helper
 
 import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.domain.model.AllianceMember
-import fr.nathanaudvard.emp.domain.model.ConvoySource
 import fr.nathanaudvard.emp.domain.model.LayingNeed
 import fr.nathanaudvard.emp.domain.model.SavedComputation
 import fr.nathanaudvard.emp.domain.model.PlayerLevels
 import fr.nathanaudvard.emp.domain.model.SelfProduction
 import fr.nathanaudvard.emp.domain.model.SettledWage
 import fr.nathanaudvard.emp.domain.model.Wage
-import fr.nathanaudvard.emp.domain.model.WageComputation
 import fr.nathanaudvard.emp.domain.model.WageDelivery
 import fr.nathanaudvard.emp.domain.model.WageDistribution
-import fr.nathanaudvard.emp.domain.model.WageHistoryBounds
 import fr.nathanaudvard.emp.domain.model.WageSettlement
 import kotlin.math.floor
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
-import kotlin.time.Instant
 
-class WageService(private val repository: WageRepository) {
+class WageHelper(private val repository: WageRepository) {
     // Production over the period
     fun selfProductions(
         members: List<AllianceMember>,
@@ -75,35 +71,6 @@ class WageService(private val repository: WageRepository) {
 
     fun deliveries(wages: List<SettledWage>, distribution: WageDistribution): List<WageDelivery> =
         distribute(wages, distribution)
-
-    suspend fun save(computation: WageComputation) = repository.save(computation)
-
-    suspend fun bounds(allianceTag: String): WageHistoryBounds = repository.bounds(allianceTag)
-
-    suspend fun olderId(allianceTag: String, id: Long): Long? = repository.olderId(allianceTag, id)
-
-    suspend fun newerId(allianceTag: String, id: Long): Long? = repository.newerId(allianceTag, id)
-
-    suspend fun latestIdBefore(allianceTag: String, instant: Instant): Long? =
-        repository.latestIdBefore(allianceTag, instant)
-
-    suspend fun computation(allianceTag: String, id: Long): WageComputation? =
-        repository.computation(allianceTag, id)
-
-    suspend fun saveConvoy(
-        computationId: Long,
-        convoy: WageDelivery,
-        sentAt: Instant,
-        source: ConvoySource,
-        declaredBy: Long,
-        arrivesAt: Instant? = null,
-        returnAt: Instant? = null,
-    ): Long = repository.saveConvoy(computationId, convoy, sentAt, source, arrivesAt, returnAt, declaredBy)
-
-    suspend fun setConvoyTimes(id: Long, arrivesAt: Instant?, returnAt: Instant?) =
-        repository.setConvoyTimes(id, arrivesAt, returnAt)
-
-    suspend fun deleteConvoys(ids: Collection<Long>, fromPlayerId: Long) = repository.deleteConvoys(ids, fromPlayerId)
 
     suspend fun latest(allianceTag: String): SavedComputation? {
         val latestId = repository.bounds(allianceTag).latestId ?: return null

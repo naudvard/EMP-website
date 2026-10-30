@@ -5,11 +5,15 @@ import fr.nathanaudvard.emp.api.dto.WageComputationResponse
 import fr.nathanaudvard.emp.api.dto.WageResponse
 import fr.nathanaudvard.emp.api.resources.Alliances
 import fr.nathanaudvard.emp.api.resources.Exports
+import fr.nathanaudvard.emp.domain.model.WageDistribution
+import fr.nathanaudvard.emp.domain.service.WageService
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
+import io.ktor.server.plugins.di.dependencies
+import kotlinx.datetime.LocalTime
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -220,6 +224,17 @@ class ComputeWagesTest {
         fourmizzz.players("202610201200", listOf(fourmi))
 
         assertEquals(HttpStatusCode.BadRequest, wages(distribution = "random").status)
+    }
+
+    @Test
+    fun `computes with the distribution the chiefs saved when none is given`() = appTest {
+        fourmizzz.players("202610201200", listOf(fourmi))
+        start()
+        val wages: WageService = application.dependencies.resolve()
+        wages.saveSettings("EMP", LocalTime(18, 0), WageDistribution.PROPORTIONAL, by = 123)
+
+        assertEquals(HttpStatusCode.OK, post(Alliances.Tag.Wages(Alliances.Tag(tag = "EMP"))).status)
+        assertEquals(WageDistribution.PROPORTIONAL, latestComputation().distribution)
     }
 
     @Test

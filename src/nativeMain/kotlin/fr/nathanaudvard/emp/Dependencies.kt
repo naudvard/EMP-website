@@ -11,42 +11,17 @@ import fr.nathanaudvard.emp.database.PlayerRepository
 import fr.nathanaudvard.emp.database.WageRepository
 import fr.nathanaudvard.emp.database.createDatabase
 import fr.nathanaudvard.emp.database.createSqlDriver
-import fr.nathanaudvard.emp.domain.usecase.ComputeWagesNowUseCase
-import fr.nathanaudvard.emp.domain.usecase.ComputeWagesUseCase
-import fr.nathanaudvard.emp.domain.usecase.ConfirmPlayerLevelsUseCase
-import fr.nathanaudvard.emp.domain.usecase.CreateChiefLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.CreateDeviceCodeUseCase
-import fr.nathanaudvard.emp.domain.usecase.DeclareConvoyUseCase
-import fr.nathanaudvard.emp.domain.usecase.DeleteConvoyUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceMembersUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceSettingsUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetAllianceUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetChiefsUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetMemberUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetMyOverviewUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetWageHistoryUseCase
-import fr.nathanaudvard.emp.domain.usecase.GetWagesPanelUseCase
-import fr.nathanaudvard.emp.domain.usecase.IdentifyViewerUseCase
-import fr.nathanaudvard.emp.domain.usecase.OpenAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.PasteConvoysUseCase
-import fr.nathanaudvard.emp.domain.usecase.ReplaceAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.RunScheduledComputationUseCase
-import fr.nathanaudvard.emp.domain.usecase.SaveAllianceSettingsUseCase
-import fr.nathanaudvard.emp.domain.usecase.SavePlayerLevelUseCase
-import fr.nathanaudvard.emp.domain.usecase.SaveWageSettlementUseCase
-import fr.nathanaudvard.emp.domain.usecase.SendAccessLinkUseCase
-import fr.nathanaudvard.emp.domain.usecase.SetChiefUseCase
-import fr.nathanaudvard.emp.domain.usecase.SignInWithCodeUseCase
-import fr.nathanaudvard.emp.domain.usecase.SyncExportedAlliancesUseCase
-import fr.nathanaudvard.emp.domain.usecase.SyncExportedPlayersUseCase
-import fr.nathanaudvard.emp.domain.usecase.SyncFourmizzzUseCase
-import fr.nathanaudvard.emp.domain.usecase.UndoLevelChangeUseCase
+import fr.nathanaudvard.emp.domain.helper.AccessHelper
+import fr.nathanaudvard.emp.domain.helper.ExportHelper
+import fr.nathanaudvard.emp.domain.helper.PlayerHelper
+import fr.nathanaudvard.emp.domain.helper.WageHelper
+import fr.nathanaudvard.emp.domain.service.AccessService
+import fr.nathanaudvard.emp.domain.service.AllianceService
+import fr.nathanaudvard.emp.domain.service.ConvoyService
+import fr.nathanaudvard.emp.domain.service.ExportService
+import fr.nathanaudvard.emp.domain.service.PlayerService
+import fr.nathanaudvard.emp.domain.service.WageService
 import fr.nathanaudvard.emp.fourmizzz.FourmizzzClient
-import fr.nathanaudvard.emp.service.AccessService
-import fr.nathanaudvard.emp.service.AllianceSettingsService
-import fr.nathanaudvard.emp.service.ExportService
-import fr.nathanaudvard.emp.service.PlayerService
-import fr.nathanaudvard.emp.service.WageService
 import io.ktor.client.HttpClient
 import io.ktor.server.application.Application
 import io.ktor.server.config.getAs
@@ -77,41 +52,21 @@ fun Application.configureDependencies() {
         provide<HttpClient> { HttpClient() }
         provide<FourmizzzClient> { FourmizzzClient(resolve(), config.fourmizzz) }
 
-        provide(::ExportService)
-        provide(::PlayerService)
-        provide(::WageService)
-        provide(::AccessService)
-        provide(::AllianceSettingsService)
+        provide(::ExportHelper)
+        provide(::PlayerHelper)
+        provide(::WageHelper)
+        provide(::AccessHelper)
 
-        provide(::SyncExportedAlliancesUseCase)
-        provide(::SyncExportedPlayersUseCase)
-        provide(::ComputeWagesUseCase)
-        provide(::GetWageHistoryUseCase)
-        provide(::GetAllianceMembersUseCase)
-        provide(::SavePlayerLevelUseCase)
-        provide(::GetAllianceUseCase)
-        provide(::GetMemberUseCase)
-        provide(::SaveWageSettlementUseCase)
-        provide(::SetChiefUseCase)
-        provide(::SyncFourmizzzUseCase)
-        provide(::DeleteConvoyUseCase)
-        provide(::IdentifyViewerUseCase)
-        provide(::OpenAccessLinkUseCase)
-        provide(::SignInWithCodeUseCase)
-        provide(::CreateDeviceCodeUseCase)
-        provide(::GetChiefsUseCase)
-        provide(::SendAccessLinkUseCase)
-        provide(::ReplaceAccessLinkUseCase)
-        provide(::CreateChiefLinkUseCase)
-        provide(::GetMyOverviewUseCase)
-        provide(::ConfirmPlayerLevelsUseCase)
-        provide(::UndoLevelChangeUseCase)
-        provide(::DeclareConvoyUseCase)
-        provide(::PasteConvoysUseCase)
-        provide(::GetAllianceSettingsUseCase)
-        provide(::SaveAllianceSettingsUseCase)
-        provide(::ComputeWagesNowUseCase)
-        provide(::RunScheduledComputationUseCase)
-        provide(::GetWagesPanelUseCase)
+        provide(::ExportService)
+        provide(::AccessService)
+        // A constructor reference takes at most 6 parameters
+        provide<AllianceService> {
+            AllianceService(resolve(), resolve(), resolve(), resolve(), resolve(), resolve(), resolve(), resolve())
+        }
+        provide(::PlayerService)
+        provide(::ConvoyService)
+        provide<WageService> {
+            WageService(resolve(), resolve(), resolve(), resolve(), resolve(), resolve(), resolve(), resolve())
+        }
     }
 }

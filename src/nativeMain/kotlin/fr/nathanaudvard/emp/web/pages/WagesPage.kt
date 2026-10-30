@@ -1,7 +1,8 @@
 package fr.nathanaudvard.emp.web.pages
 
-import fr.nathanaudvard.emp.domain.model.AllianceSettings
-import fr.nathanaudvard.emp.domain.model.ComputationFailure
+import fr.nathanaudvard.emp.domain.helper.COLONY_BASE_SHARE_PERCENT
+import fr.nathanaudvard.emp.domain.helper.COLONY_SHARE_PERCENT_PER_APHID_FARM_LEVEL
+import fr.nathanaudvard.emp.domain.helper.WOOD_PER_FIELD_PER_DAY
 import fr.nathanaudvard.emp.domain.model.Viewer
 import fr.nathanaudvard.emp.domain.model.Wage
 import fr.nathanaudvard.emp.domain.model.WageComputation
@@ -10,9 +11,6 @@ import fr.nathanaudvard.emp.domain.model.WageDistribution
 import fr.nathanaudvard.emp.domain.model.WageHistory
 import fr.nathanaudvard.emp.domain.model.WagesPanel
 import fr.nathanaudvard.emp.domain.model.gameTimeZone
-import fr.nathanaudvard.emp.service.COLONY_BASE_SHARE_PERCENT
-import fr.nathanaudvard.emp.service.COLONY_SHARE_PERCENT_PER_APHID_FARM_LEVEL
-import fr.nathanaudvard.emp.service.WOOD_PER_FIELD_PER_DAY
 import fr.nathanaudvard.emp.web.resources.Alliance
 import fr.nathanaudvard.emp.web.resources.Wages
 import kotlinx.datetime.toLocalDateTime
@@ -65,12 +63,8 @@ object WagesFields {
     const val ID = "id"
 }
 
-// A text to copy shown on the page, when the clipboard could not be written
-class CopiedText(val label: String, val text: String)
-
 // The searched date is the one asked for in the URL, when no computation id is. The viewer comes first in the
-// deliveries and is marked in the balances; the full detail, the panel and the texts to copy are only ever shown to a
-// chief
+// deliveries and is marked in the balances; the full detail and the panel are only ever shown to a chief
 fun HTML.wagesPage(
     history: WageHistory,
     viewer: Viewer? = null,
@@ -78,7 +72,6 @@ fun HTML.wagesPage(
     detail: Boolean = false,
     panel: WagesPanel? = null,
     now: Instant? = null,
-    copied: CopiedText? = null,
 ) = layout("Salaires", Tab.WAGES, viewer) {
     val viewerId = viewer?.playerId
     val chief = viewer?.chief == true
@@ -86,7 +79,7 @@ fun HTML.wagesPage(
     val pilot = panel.takeIf { chief }?.let { panel -> now?.let { panel to it } }
     if (history.bounds.latestId == null || computation == null) {
         h1("page-title") { +"Salaires" }
-        pilot?.let { (panel, now) -> wagesPanel(panel, history, now, copied) }
+        pilot?.let { (panel, now) -> wagesPanel(panel, history, now) }
         if (history.bounds.latestId == null) {
             empMessage(MessageVariant.INFO) { +"Aucun calcul de salaires pour l'instant." }
         } else {
@@ -108,7 +101,7 @@ fun HTML.wagesPage(
             +" · répartition ${computation.distribution.label}"
         }
     }
-    pilot?.let { (panel, now) -> wagesPanel(panel, history, now, copied) }
+    pilot?.let { (panel, now) -> wagesPanel(panel, history, now) }
     val latest = history.selectedId == history.bounds.latestId
     if (!latest) {
         empMessage(MessageVariant.INFO, inline = true) {
@@ -118,8 +111,7 @@ fun HTML.wagesPage(
     }
     tiles(computation, chief)
     filter()
-    // Reminders tell what is due by the next computation: the latest computation's only
-    deliveries(computation, viewerId, chief, history.selectedId.takeIf { chief && latest })
+    deliveries(computation, viewerId, chief)
     balances(computation, history.selectedId, viewerId, chief, detail && chief)
     method(computation)
 }
@@ -134,16 +126,8 @@ private fun plural(count: Int, one: String, many: String = "${one}s") = "$count 
 
 private val WageDistribution.title get() = label.replaceFirstChar { it.uppercase() }
 
-val ComputationFailure.reason
-    get() = when (this) {
-        ComputationFailure.NO_EXPORT -> "aucun export joueurs Fourmizzz depuis le calcul précédent"
-        ComputationFailure.NO_MEMBERS -> "aucun membre de l'alliance dans le dernier export joueurs"
-        ComputationFailure.FOURMIZZZ_UNAVAILABLE -> "Fourmizzz ne répond pas"
-        ComputationFailure.UNEXPECTED -> "erreur inattendue, détaillée dans les journaux du serveur"
-    }
-
-// The settings of the daily computation, the computation on demand, and what needs a chief before the next one
-fun FlowContent.wagesPanel(panel: WagesPanel, history: WageHistory, now: Instant, copied: CopiedText? = null) =
+// The settings of the daily computation, and what needs a chief before the next one
+fun FlowContent.wagesPanel(panel: WagesPanel, history: WageHistory, now: Instant) =
     empCard(CardVariant.ACCENT, "wages-panel") {
         id = PANEL_SECTION
         attributes["aria-labelledby"] = "$PANEL_SECTION-title"
@@ -154,42 +138,9 @@ fun FlowContent.wagesPanel(panel: WagesPanel, history: WageHistory, now: Instant
             }
             empBadge(BadgeVariant.LEADER, "Chef")
         }
-        copied?.let { copiedText(it) }
-        val announcement = history.selectedId?.takeIf { history.selected != null }
         settingsForm(panel, history, now)
-        p("wages-panel__wide small text-secondary") {
-            +"« Calculer maintenant » demande confirmation : il clôt la période en cours, les envois non faits restent à faire, "
-            +"et le calcul de ${panel.settings.computationTime} partira de ce nouveau calcul."
-        }
-        alerts(panel, history, now, announcement)
-        // On a phone the actions come last, under the alerts
-        div("wages-panel__actions") {
-            compute()
-            announcement?.let { announcement(it, "Annonce forum", BtnSize.DEFAULT) }
-        }
+        alerts(panel, history, now)
     }
-
-private fun FlowContent.compute() = empBtnLink(href(Wages.Compute()), BtnVariant.PRIMARY) { +"Calculer maintenant…" }
-
-private fun FlowContent.announcement(computationId: Long, label: String, size: BtnSize) =
-    form(href(Wages.Announcement(computationId = computationId)), method = FormMethod.post, classes = "wages-panel__announcement") {
-        empCopyButton(label, BtnVariant.SECONDARY, size)
-    }
-
-private fun FlowContent.copiedText(copied: CopiedText) = div("wages-panel__copied") {
-    label {
-        htmlFor = "copied-text"
-        +copied.label
-    }
-    textArea(rows = "8", classes = "emp-textarea") {
-        id = "copied-text"
-        readonly = true
-        autoFocus = true
-        attributes["onfocus"] = "this.select()"
-        +copied.text
-    }
-    empCopyButton("Copier", BtnVariant.SECONDARY, BtnSize.COMPACT, target = "copied-text")
-}
 
 // Saved as soon as a setting changes, back to the computation shown
 private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, now: Instant) {
@@ -200,6 +151,8 @@ private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, no
         history.selectedId?.takeIf { it != history.bounds.latestId }?.let { id ->
             input(InputType.hidden, name = WagesFields.ID) { value = id.toString() }
         }
+        // Hidden while the cron calling the API sets the time: it must not be changed here alone
+        /*
         div("wages-panel__setting") {
             label("small") {
                 htmlFor = "computation-time"
@@ -211,6 +164,7 @@ private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, no
                 value = settings.computationTime.toString()
             }
         }
+        */
         div("wages-panel__setting") {
             span("small") {
                 id = "distribution-label"
@@ -235,8 +189,6 @@ private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, no
                 }
             }
         }
-        // From a desktop width, on the line of the settings
-        div("wages-panel__wide") { compute() }
         settings.updatedAt?.let { updatedAt ->
             p("small text-secondary wages-panel__updated") {
                 +listOfNotNull(
@@ -248,31 +200,18 @@ private fun FlowContent.settingsForm(panel: WagesPanel, history: WageHistory, no
     }
 }
 
-// Abridged on a phone. From a desktop width, the announcement to copy closes the list
-private fun FlowContent.alerts(panel: WagesPanel, history: WageHistory, now: Instant, announcement: Long?) = ul("wages-panel__alerts") {
+// Abridged on a phone
+private fun FlowContent.alerts(panel: WagesPanel, history: WageHistory, now: Instant) = ul("wages-panel__alerts") {
     val alliance = panel.alliance
     li {
         val syncedAt = alliance.syncedAt
-        val today = syncedAt != null && formatRelativeDay(syncedAt, now) == "aujourd'hui"
         if (syncedAt == null) {
             +"Aucun export joueurs Fourmizzz synchronisé"
         } else {
+            val today = formatRelativeDay(syncedAt, now) == "aujourd'hui"
             +"✓ Export "
             span("whole") { +"joueurs " }
             +"Fourmizzz ${if (today) "de ${formatTime(syncedAt)}" else formatOfDayTime(syncedAt, now)}, ${plural(alliance.members.size, "membre")}"
-        }
-        // An export of the day needs nothing more
-        if (!today) {
-            +" · "
-            a(href(Alliance())) { +"Synchroniser" }
-        }
-    }
-    val settings = panel.settings
-    val failedAt = settings.failedAt
-    val latestComputedAt = history.bounds.latestComputedAt
-    if (failedAt != null && settings.failure != null && (latestComputedAt == null || failedAt > latestComputedAt)) {
-        li("wages-panel__alert--danger") {
-            +"Le calcul automatique ${formatOfDayTime(failedAt, now)} a échoué : ${settings.failure.reason}."
         }
     }
     val stale = alliance.members.count { MemberFilter.STALE_LEVELS.matches(it, now) }
@@ -299,26 +238,7 @@ private fun FlowContent.alerts(panel: WagesPanel, history: WageHistory, now: Ins
             }
         }
     }
-    announcement?.let { li("wages-panel__wide") { announcement(it, "Copier l'annonce pour le forum", BtnSize.COMPACT) } }
 }
-
-// Confirmed on a page of its own: no script is needed
-fun HTML.computePage(viewer: Viewer, settings: AllianceSettings, now: Instant, failure: ComputationFailure? = null) =
-    layout("Calculer maintenant", Tab.WAGES, viewer) {
-        h1("page-title") { +"Calculer maintenant ?" }
-        failure?.let { empMessage(MessageVariant.DANGER) { +"Rien n'a été calculé : ${it.reason}." } }
-        empCard(cssClass = "wages-compute") {
-            ul("wages-compute__effects") {
-                li { +"Il clôt la période en cours : la récolte depuis le dernier calcul est partagée, en répartition ${settings.distribution.label}." }
-                li { +"Les envois non faits restent à faire." }
-                li { +"Le calcul de ${settings.computationTime} partira de ce nouveau calcul (prochain : ${formatDue(settings.nextComputation(now), now)})." }
-            }
-            form(href(Wages.Compute()), method = FormMethod.post, classes = "wages-compute__actions") {
-                empBtn(BtnVariant.PRIMARY) { +"Calculer maintenant" }
-                empBtnLink(href(Wages()), BtnVariant.SUBTLE) { +"Annuler" }
-            }
-        }
-    }
 
 private fun Instant.gameDate() = toLocalDateTime(gameTimeZone).date.toString()
 
@@ -450,8 +370,8 @@ private class Giver(val playerId: Long, val pseudo: String, val deliveries: List
 }
 
 // A member who has something left to send first, then the largest amount left; those who sent everything folded
-// below. With a computation id, each giver with something left gets a reminder to copy
-private fun FlowContent.deliveries(computation: WageComputation, viewerId: Long?, chief: Boolean, remindersOf: Long?) {
+// below
+private fun FlowContent.deliveries(computation: WageComputation, viewerId: Long?, chief: Boolean) {
     val pseudos = computation.wages.associate { it.playerId to it.pseudo }
     val givers = computation.deliveries.groupBy { it.fromPlayerId }.map { (playerId, deliveries) ->
         Giver(playerId, pseudos.getValue(playerId), deliveries.sortedByDescending { it.amount }, deliveries.sumOf { computation.covered(it) })
@@ -470,19 +390,19 @@ private fun FlowContent.deliveries(computation: WageComputation, viewerId: Long?
         }
         if (left.isNotEmpty()) {
             div("givers") {
-                left.forEach { giver(computation, pseudos, it, it.playerId == viewerId, remindersOf) }
+                left.forEach { giver(computation, pseudos, it, it.playerId == viewerId) }
             }
         }
         if (done.isNotEmpty()) {
             div("givers givers--done") {
-                done.forEach { giver(computation, pseudos, it, it.playerId == viewerId, remindersOf) }
+                done.forEach { giver(computation, pseudos, it, it.playerId == viewerId) }
             }
         }
         noMatch()
     }
 }
 
-private fun FlowContent.giver(computation: WageComputation, pseudos: Map<Long, String>, giver: Giver, viewer: Boolean, remindersOf: Long?) {
+private fun FlowContent.giver(computation: WageComputation, pseudos: Map<Long, String>, giver: Giver, viewer: Boolean) {
     val name: FlowContent.() -> Unit = {
         span("player-name giver__pseudo") {
             +giver.pseudo
@@ -530,11 +450,6 @@ private fun FlowContent.giver(computation: WageComputation, pseudos: Map<Long, S
                         if (partial) span("giver__state-left small text-secondary") { +"reste ${formatAmount(delivery.amount - sent)}" }
                     }
                 }
-            }
-        }
-        remindersOf?.let { computationId ->
-            form(href(Wages.Reminder(computationId = computationId, playerId = giver.playerId)), method = FormMethod.post, classes = "giver__reminder") {
-                empCopyButton("Copier un rappel", BtnVariant.SECONDARY, BtnSize.COMPACT)
             }
         }
     }

@@ -3,14 +3,10 @@ package fr.nathanaudvard.emp.web.resources
 import io.ktor.resources.Resource
 import kotlinx.serialization.Serializable
 
-// The members, with a filter (a MemberFilter's key). Synced is the members count of a sync just made
+// The members, with a filter (a MemberFilter's key)
 @Serializable
 @Resource("/alliance")
-class Alliance(val filter: String? = null, val synced: Int? = null) {
-    @Serializable
-    @Resource("sync")
-    class Sync(val parent: Alliance = Alliance())
-
+class Alliance(val filter: String? = null) {
     // A member's page, for the chiefs. Notice is what was just done
     @Serializable
     @Resource("members/{pseudo}")
